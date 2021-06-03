@@ -1,2 +1,3 @@
-# repository__scripts
-Repository of in-game scripts
+# STPC 脚本仓库
+
+> 由 SCPT 开发
