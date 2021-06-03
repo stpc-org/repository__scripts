@@ -22,7 +22,7 @@
 * [3] 摄像头发现目标之后自动尝试保持锁定, 可通过命令取消锁定,
 *     取消锁定后一定时间内不再锁定相同目标, 支持使用载具上的固定摄像头来辅助锁定目标
 * 
-* [4] 设置武器炮弹飞行速度和加速度等各种信息后脚本提供预判功能, 
+* [4] 设置武器炮弹初始飞行速度和加速度等各种信息后脚本提供预判功能, 
 *     此外脚本支持在重力环境下预判受到重力影响的炮弹(如活塞火炮炮弹)
 *     
 * [5] 支持将原生自动炮塔的目标作为脚本锁定目标, 出现多目标时按照规则进行分配
@@ -38,7 +38,7 @@
 /**
  * 开发计划:
  * [0] 针对目标加速度变化过大的规避进行的模式识别和预判策略调整(目标机动性评估)
- * [1] 目标局部预判功能(根据朝向接口)
+ * [1] 目标局部预判功能(根据目标的朝向)
  * 
  */
 
@@ -54,6 +54,7 @@ using System.Text;
 using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
@@ -228,6 +229,8 @@ namespace AN0FCS
 
 		#region 脚本入口
 
+		#region 脚本入口
+
 		/***************************************************************************************************
 		* 构造函数 Program()
 		***************************************************************************************************/
@@ -242,25 +245,26 @@ namespace AN0FCS
 		}
 
 		/***************************************************************************************************
-		* 入口函数 main()
+		* 入口函数 Main()
 		***************************************************************************************************/
 		void Main(string str_arg,UpdateType type_update)
 		{
-			if(type_update==UpdateType.Trigger)
+			switch(type_update)
 			{
-				//工具栏带参数执行
-				//检查命令
-				switch(str_arg)
-				{
-
-				}
-				++count_trigger;
+			case UpdateType.Trigger:
+			{
+				run_command(str_arg);
 			}
-			else if(type_update==UpdateType.Update1)
+			break;
+			case UpdateType.Update1:
 			{
 				update_script();
 			}
+			break;
+			}
 		}
+
+		#endregion
 
 		#endregion
 
@@ -372,6 +376,12 @@ namespace AN0FCS
 
 			display_info();//信息显示
 			++count_update;//更新次数+1
+		}
+
+		//执行指令
+		void run_command(string str_arg)
+		{
+
 		}
 
 		//自动控制(尝试持续锁定目标, 并控制各炮塔)

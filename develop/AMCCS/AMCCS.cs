@@ -11,7 +11,7 @@
 * 
 ********************************************************************************************************************************************************************************************************/
 
-//#define DEVELOP
+#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
@@ -23,6 +23,7 @@ using System.Text;
 using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
@@ -192,8 +193,8 @@ namespace AMCCS
 		//枚举变量 组内射击模式(默认轮射)
 		FireMode mode_fire__intra_group = FireMode.Round;
 
-		//计数 脚本触发次数(工具栏手动触发次数)
-		long count_trigger = 0;
+		//计数 运行命令数
+		long count__run_cmd = 0;
 		//计数 更新
 		long count_update = 0;
 		//计数 射击
@@ -239,20 +240,23 @@ namespace AMCCS
 		}
 
 		/***************************************************************************************************
-		* 入口函数 main()
+		* 入口函数 Main()
 		***************************************************************************************************/
 		void Main(string str_arg,UpdateType type_update)
 		{
-			if(type_update==UpdateType.Trigger)
+			switch(type_update)
+			{
+			case UpdateType.Trigger:
 			{
 				run_command(str_arg);
-				++count_trigger;//触发计数+1
 			}
-			else if(type_update==UpdateType.Update1)
+			break;
+			case UpdateType.Update1:
 			{
 				update_script();
 			}
-			return;
+			break;
+			}
 		}
 
 		#endregion
@@ -297,7 +301,7 @@ namespace AMCCS
 		void run_command(string str_arg)
 		{
 			var cmd = split_string(str_arg);//空格拆分
-
+			++count__run_cmd;//更新计数
 			if(cmd.Count==1)
 			{
 				switch(cmd[0])//检查命令
@@ -373,7 +377,7 @@ namespace AMCCS
 				+"\n<mode_fire__inter_group>"+mode_fire__inter_group
 				+"\n<mode_fire__intra_group>"+mode_fire__intra_group
 				+"\n<count_update> "+count_update
-				+"\n<count_trigger> "+count_trigger
+				+"\n<count_trigger> "+count__run_cmd
 				+"\n<count_fire> "+count_fire
 				+"\n<flag__auto_fire> "+flag__auto_fire
 				+"\n<count_groups> total "+list__cannon_groups.Count

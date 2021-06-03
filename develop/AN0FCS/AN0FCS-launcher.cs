@@ -21,6 +21,7 @@ using System.Text;
 using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
@@ -29,7 +30,6 @@ namespace AN0FCS_LAUNCHER
 	class Program:MyGridProgram
 	{
 #endif
-
 
 
 
