@@ -1,4 +1,4 @@
-﻿/********************************************************************************************************************************************************************************************************          
+﻿/***************************************************************************************************
 * 
 * ### AN0FCS's Not Only Fire Control System ###
 * ### AN0FCS | "匿名者" 火控系统脚本 ------ ###
@@ -33,7 +33,7 @@
 * [10] 支持炮塔大角度旋转稳定器, 专业防手抖
 * 
 * 
-********************************************************************************************************************************************************************************************************/
+***************************************************************************************************/
 
 /**
  * 开发计划:
@@ -66,6 +66,9 @@ namespace AN0FCS
 
 		#region 脚本字段
 
+		//字符串 脚本版本号
+		readonly string str__script_version = "AN0FCS-MAIN V0.0.0-BETA ";
+
 		//数组 运行时字符显示
 		//string[] array__runtime_chars = new string[] { "","","R","RU","RUN","RUNN","RUNNI","RUNNIN","RUNNING","RUNNING",};
 		string[] array__runtime_chars = new string[] { "","","B","BE","BET","BETA","BETA",};
@@ -82,7 +85,7 @@ namespace AN0FCS
 		string tag_indicator = "indicator";
 		//标签 阻塞联通标记
 		string tag_blocked = "blocked";
-		//标签 射击
+		//标签 射击(主要用于区分定时器)
 		string tag_fire = "fire";
 		//标签 停火
 		string tag_hold = "hold";
@@ -180,7 +183,7 @@ namespace AN0FCS
 		bool flag__h_c;//标记 包含控制器
 
 		//计数 脚本触发次数(工具栏手动触发次数)
-		long count_trigger = 0;
+		long count__run_cmd = 0;
 		//计数 更新
 		long count_update = 0;
 		//索引 当前字符图案
@@ -229,11 +232,9 @@ namespace AN0FCS
 
 		#region 脚本入口
 
-		#region 脚本入口
-
-		/***************************************************************************************************
+		/**************************************************************************
 		* 构造函数 Program()
-		***************************************************************************************************/
+		**************************************************************************/
 		public Program()
 		{
 			Echo("<execute> init");
@@ -244,31 +245,29 @@ namespace AN0FCS
 			Echo("<done> init");
 		}
 
-		/***************************************************************************************************
+		/**************************************************************************
 		* 入口函数 Main()
-		***************************************************************************************************/
+		**************************************************************************/
 		void Main(string str_arg,UpdateType type_update)
 		{
 			switch(type_update)
 			{
-			case UpdateType.Trigger:
-			{
-				run_command(str_arg);
-			}
-			break;
-			case UpdateType.Update1:
-			{
-				update_script();
-			}
-			break;
+				case UpdateType.Trigger:
+				{
+					run_command(str_arg);
+				}
+				break;
+				case UpdateType.Update1:
+				{
+					update_script();
+				}
+				break;
 			}
 		}
 
 		#endregion
 
-		#endregion
-
-		#region 功能函数
+		#region 成员函数
 
 		//脚本更新
 		void update_script()
@@ -337,36 +336,36 @@ namespace AN0FCS
 				if(flag__a_c) automatic_control();//自动控制
 				switch(mode_control)
 				{
-				case ControlMode.GlobalControlMode://全局操控模式
-				{
-					if(flag__a_c) break;//自动模式完全屏蔽
-					if(flag__reset_global_orientation_when_user_leave&&mode__control_prev==ControlMode.None)
-						reset_global_orientation();//重置
-					if(flag__enable_scan_under_global_control_mode)
-						if(scan(true)) flag__a_c=true;
-					foreach(var item in list_turrets)//设置目标方向
-						item.set_target_orientation(vector__global_orientation);
-				}
-				break;
-				case ControlMode.SingleControlMode://单一操控模式
-				{
-					if(!flag__a_c)//自动模式部分屏蔽
+					case ControlMode.GlobalControlMode://全局操控模式
 					{
-						if(!flag__enable_asynchronously_control)//同步模式
-							foreach(var item in list_turrets)//设置目标方向
-								item.set_target_orientation(vector__global_orientation);
-						if(scan(true)) flag__a_c=true;
+						if(flag__a_c) break;//自动模式完全屏蔽
+						if(flag__reset_global_orientation_when_user_leave&&mode__control_prev==ControlMode.None)
+							reset_global_orientation();//重置
+						if(flag__enable_scan_under_global_control_mode)
+							if(scan(true)) flag__a_c=true;
+						foreach(var item in list_turrets)//设置目标方向
+							item.set_target_orientation(vector__global_orientation);
 					}
-					if(flag__enable_always_control)//开启持续控制
-						turret__under_control.set_target_orientation(vector__global_orientation);
-				}
-				break;
-				case ControlMode.None://无控制
-				{
-					if(flag__enable_turret_reset&&mode__control_prev!=ControlMode.None&&!flag__a_c)
-						foreach(var item in list_turrets) item.reset();
-				}
-				break;
+					break;
+					case ControlMode.SingleControlMode://单一操控模式
+					{
+						if(!flag__a_c)//自动模式部分屏蔽
+						{
+							if(!flag__enable_asynchronously_control)//同步模式
+								foreach(var item in list_turrets)//设置目标方向
+									item.set_target_orientation(vector__global_orientation);
+							if(scan(true)) flag__a_c=true;
+						}
+						if(flag__enable_always_control)//开启持续控制
+							turret__under_control.set_target_orientation(vector__global_orientation);
+					}
+					break;
+					case ControlMode.None://无控制
+					{
+						if(flag__enable_turret_reset&&mode__control_prev!=ControlMode.None&&!flag__a_c)
+							foreach(var item in list_turrets) item.reset();
+					}
+					break;
 				}
 
 				//更新所有炮塔
@@ -420,33 +419,33 @@ namespace AN0FCS
 			{
 				switch(i.Type)//类型过滤器
 				{
-				case MyDetectedEntityType.CharacterHuman://人类角色
-				case MyDetectedEntityType.CharacterOther://非人角色
+					case MyDetectedEntityType.CharacterHuman://人类角色
+					case MyDetectedEntityType.CharacterOther://非人角色
 					if(flag__ignore_players) return false; break;
-				case MyDetectedEntityType.Missile://小型网格
+					case MyDetectedEntityType.Missile://小型网格
 					if(flag__ignore_rockets) return false; break;
-				case MyDetectedEntityType.Meteor://小型网格
+					case MyDetectedEntityType.Meteor://小型网格
 					if(flag__ignore_meteors) return false; break;
-				case MyDetectedEntityType.SmallGrid://小型网格
+					case MyDetectedEntityType.SmallGrid://小型网格
 					if(flag__ignore_small_grids) return false; break;
-				case MyDetectedEntityType.LargeGrid://大型网格
+					case MyDetectedEntityType.LargeGrid://大型网格
 					if(flag__ignore_large_grids) return false; break;
-				case MyDetectedEntityType.FloatingObject://漂浮物
-				case MyDetectedEntityType.Asteroid://小行星
-				case MyDetectedEntityType.Planet://行星
-				case MyDetectedEntityType.Unknown://未知
-				case MyDetectedEntityType.None://空
+					case MyDetectedEntityType.FloatingObject://漂浮物
+					case MyDetectedEntityType.Asteroid://小行星
+					case MyDetectedEntityType.Planet://行星
+					case MyDetectedEntityType.Unknown://未知
+					case MyDetectedEntityType.None://空
 					return false;//被忽略的类型
 				}
 				switch(i.Relationship)//关系过滤器
 				{
-				case MyRelationsBetweenPlayerAndBlock.Friends://友方
-				case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
+					case MyRelationsBetweenPlayerAndBlock.Friends://友方
+					case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
 					if(flag__ignore_the_friendly) return false; break;
-				case MyRelationsBetweenPlayerAndBlock.Neutral://中立方
-				case MyRelationsBetweenPlayerAndBlock.NoOwnership://无归属
+					case MyRelationsBetweenPlayerAndBlock.Neutral://中立方
+					case MyRelationsBetweenPlayerAndBlock.NoOwnership://无归属
 					if(flag__ignore_the_neutral) return false; break;
-				case MyRelationsBetweenPlayerAndBlock.Enemies://敌对方
+					case MyRelationsBetweenPlayerAndBlock.Enemies://敌对方
 					if(flag__ignore_the_enemy) return false; break;
 				}
 				tgt.set(ts,i,position); return true;
@@ -537,20 +536,20 @@ namespace AN0FCS
 						continue;
 					switch(item.mode_display)
 					{
-					case DisplayUnit.DisplayMode.Page0:
+						case DisplayUnit.DisplayMode.Page0:
 						item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_0,true); break;
-					case DisplayUnit.DisplayMode.Page1:
+						case DisplayUnit.DisplayMode.Page1:
 						item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_1,true); break;
-					case DisplayUnit.DisplayMode.Targets:
-					{
+						case DisplayUnit.DisplayMode.Targets:
+						{
 
+							break;
+						}
+						case DisplayUnit.DisplayMode.SingleTurret:
 						break;
-					}
-					case DisplayUnit.DisplayMode.SingleTurret:
+						case DisplayUnit.DisplayMode.MultipleTurret:
 						break;
-					case DisplayUnit.DisplayMode.MultipleTurret:
-						break;
-					case DisplayUnit.DisplayMode.None:
+						case DisplayUnit.DisplayMode.None:
 						item.lcd.WriteText("<warning> illegal custom data in this LCD\n<by> script ANOFCS"); break;
 					}
 				}
@@ -615,68 +614,68 @@ namespace AN0FCS
 					//用户数据不为空
 					switch(array_str[0])
 					{
-					case "graphic":
-					case "page0":
+						case "graphic":
+						case "page0":
 						unit.mode_display=DisplayUnit.DisplayMode.Page0;
 						break;
-					case "page1":
+						case "page1":
 						unit.mode_display=DisplayUnit.DisplayMode.Page1;
 						break;
-					case "targets":
+						case "targets":
 						unit.mode_display=DisplayUnit.DisplayMode.Targets;
 						break;
-					case "turret":
-					{
-						if(array_str.Length==2+offset)
+						case "turret":
 						{
-							int index = 0;
-							if(!int.TryParse(array_str[1],out index))
+							if(array_str.Length==2+offset)
 							{
-								flag_illegal=true;
-								break;
+								int index = 0;
+								if(!int.TryParse(array_str[1],out index))
+								{
+									flag_illegal=true;
+									break;
+								}
+								//边界检查
+								if(index<0||index>list_turrets.Count)
+								{
+									flag_illegal=true;
+									break;
+								}
+								unit.index_begin=index;
+								unit.mode_display=DisplayUnit.DisplayMode.SingleTurret;
 							}
-							//边界检查
-							if(index<0||index>list_turrets.Count)
+							else if(array_str.Length==3+offset)
 							{
-								flag_illegal=true;
-								break;
+								int index_begin = 0, index_end = 0;
+								if(!int.TryParse(array_str[1],out index_begin))
+								{
+									flag_illegal=true;
+									break;
+								}
+								if(!int.TryParse(array_str[2],out index_end))
+								{
+									flag_illegal=true;
+									break;
+								}
+								//边界检查
+								if(index_begin<0||index_begin>list_turrets.Count)
+								{
+									flag_illegal=true;
+									break;
+								}
+								if(index_end<0||index_end>list_turrets.Count)
+								{
+									flag_illegal=true;
+									break;
+								}
+								unit.index_begin=index_begin;
+								unit.index_end=index_end;
+								unit.mode_display=DisplayUnit.DisplayMode.MultipleTurret;
 							}
-							unit.index_begin=index;
-							unit.mode_display=DisplayUnit.DisplayMode.SingleTurret;
+							else
+								flag_illegal=true;
 						}
-						else if(array_str.Length==3+offset)
-						{
-							int index_begin = 0, index_end = 0;
-							if(!int.TryParse(array_str[1],out index_begin))
-							{
-								flag_illegal=true;
-								break;
-							}
-							if(!int.TryParse(array_str[2],out index_end))
-							{
-								flag_illegal=true;
-								break;
-							}
-							//边界检查
-							if(index_begin<0||index_begin>list_turrets.Count)
-							{
-								flag_illegal=true;
-								break;
-							}
-							if(index_end<0||index_end>list_turrets.Count)
-							{
-								flag_illegal=true;
-								break;
-							}
-							unit.index_begin=index_begin;
-							unit.index_end=index_end;
-							unit.mode_display=DisplayUnit.DisplayMode.MultipleTurret;
-						}
-						else
-							flag_illegal=true;
-					}
-					break;
-					default:
+						break;
+						default:
 						unit.mode_display=DisplayUnit.DisplayMode.None;
 						break;
 					}
@@ -870,10 +869,10 @@ namespace AN0FCS
 			public static string get_title() => "name id type distance speed acc acc_avg";
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 SubTurret
 		* 一个 SubTurret 类实例对应一个上的一个子活动部件
-		**************************************************/
+		**************************************************************************/
 		class SubTurret
 		{
 			public List<IMyMotorStator> list__elevation_stators_forward { get; private set; } = new List<IMyMotorStator>();
@@ -973,8 +972,8 @@ namespace AN0FCS
 				if(num>0) string_builder__init_info.Append($"<warning> {num} elevation motors are ignored for axis angle reason\n");
 
 				foreach(var i in struct_core.list_timers)
-					if(i.CustomData.StartsWith(p.tag_fire)) list__timers_fire.Add(i);
-					else if(i.CustomData.StartsWith(p.tag_hold)) list__timers_hold.Add(i);
+					if(i.CustomName.Contains(p.tag_fire)) list__timers_fire.Add(i);
+					else if(i.CustomName.Contains(p.tag_hold)) list__timers_hold.Add(i);
 			}
 
 			public bool set_indicator()
@@ -1070,10 +1069,10 @@ namespace AN0FCS
 			}
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 Turret
 		* 一个 Turret 类实例对应一个炮塔
-		**************************************************/
+		**************************************************************************/
 		class Turret
 		{
 			public enum TurretStatus//枚举 炮塔状态
@@ -1539,10 +1538,10 @@ namespace AN0FCS
 
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 SubTurretCoreStructure
 		* 子炮塔核心结构
-		**************************************************/
+		**************************************************************************/
 		class SubTurretCoreStructure
 		{
 			//列表(多个) 各类元件
@@ -1563,11 +1562,11 @@ namespace AN0FCS
 			public bool flag_valid = true;
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 TurretCoreStructure
 		* 炮塔核心结构, 将这个对象传递给类Turret的构造函数来构造一个炮塔
 		* 本类实例包含了炮塔的全部网格对象, 水平电机和垂直电机对象
-		**************************************************/
+		**************************************************************************/
 		class TurretCoreStructure
 		{
 			//列表(多个) 各类元件
@@ -1589,12 +1588,12 @@ namespace AN0FCS
 			public bool flag_valid = true;
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 GridsGraph
 		* 网格图
 		* 非泛型通用类, 为本脚本设计, 无法移植
 		* 实例中包含本脚本所需的全部对象列表
-		**************************************************/
+		**************************************************************************/
 		class GridsGraph
 		{
 			//类 网格节点
@@ -2011,7 +2010,7 @@ namespace AN0FCS
 			}
 		}
 
-		/**************************************************
+		/**************************************************************************
 		* 类 PIDCore
 		* PID算法核心, 封装了PID算法需要使用的相关内容
 		* 
@@ -2027,7 +2026,7 @@ namespace AN0FCS
 		* 
 		* 倍率映射 (K+(a/b))^((b-a)/a) K取[1,2], 当 a<b 时, 值大于1, 反之小于1
 		* 
-		**************************************************/
+		**************************************************************************/
 		class PIDCore
 		{
 			//向量 系数
@@ -2117,11 +2116,11 @@ namespace AN0FCS
 
 		#region 配置通用
 
-		/***************************************************************************************************
+		/**************************************************************************
 		* 类 自定义数据配置
 		* 自定义数据配置(下简称CD配置)使用目标方块的自定义数据来进行脚本配置
 		* 支持动态配置, 标题等, 功能强大
-		***************************************************************************************************/
+		**************************************************************************/
 
 		//管理对象
 		class CustomDataConfig

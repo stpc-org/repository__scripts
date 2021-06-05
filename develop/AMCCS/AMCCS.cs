@@ -261,7 +261,7 @@ namespace AMCCS
 
 		#endregion
 
-		#region 功能函数
+		#region 成员函数
 
 		//脚本更新
 		void update_script()
