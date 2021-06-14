@@ -252,7 +252,9 @@ namespace AN0FCS
 		{
 			switch(type_update)
 			{
+				case UpdateType.Terminal:
 				case UpdateType.Trigger:
+				case UpdateType.Script:
 				{
 					run_command(str_arg);
 				}

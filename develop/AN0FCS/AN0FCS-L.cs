@@ -86,12 +86,16 @@ namespace AN0FCS_LAUNCHER
 		{
 			switch(type_update)
 			{
+				case UpdateType.Terminal:
 				case UpdateType.Trigger:
+				case UpdateType.Script:
 				{
 					run_command(str_arg);
 				}
 				break;
 				case UpdateType.Update1:
+				case UpdateType.Update10:
+				case UpdateType.Update100:
 				{
 					update_script();
 				}
