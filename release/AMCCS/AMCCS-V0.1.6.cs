@@ -367,8 +367,14 @@ namespace AMCCS
 				int.TryParse(cmd[1],out index_group);
 				switch(cmd[0])//检查命令
 				{
-					case "fire_specific_group":
+					case "fire":
 					fire_specific_group(index_group);
+					break;
+					case "fire_S":
+					fire_specific_group(index_group,FireMode.Salvo);
+					break;
+					case "fire_R":
+					fire_specific_group(index_group,FireMode.Round);
 					break;
 				}
 			}
@@ -687,11 +693,10 @@ namespace AMCCS
 		}
 
 		//特定编组射击
-		void fire_specific_group(int index_group = 0)
+		void fire_specific_group(int index_group = 0, FireMode mode = FireMode.None)
 		{
 			if(index_group>-1&&index_group<list__cannon_groups.Count)
-				list__cannon_groups[index_group].fire();
-			return;
+				list__cannon_groups[index_group].fire(mode);
 		}
 
 		//初始化脚本

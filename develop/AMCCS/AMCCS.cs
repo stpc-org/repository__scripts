@@ -367,7 +367,7 @@ namespace AMCCS_DEV
 				int.TryParse(cmd[1],out index_group);
 				switch(cmd[0])//检查命令
 				{
-					case "fire_specific_group":
+					case "fire":
 					fire_specific_group(index_group);
 					break;
 				}
