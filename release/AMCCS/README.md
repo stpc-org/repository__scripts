@@ -3,7 +3,7 @@
 
 ## 高级多联装火炮控制系统 | Advanced Multiple Cannon Control System
 
-> AMCCS | Version 0.1.5 | by SiriusZ-BOTTLE  
+> AMCCS | Version 0.1.6 | by SiriusZ-BOTTLE  
 > STPC旗下SCPT脚本工作室开发 欢迎加入STPC  
 > **STPC主群群号(QQ):320461590** **我们欢迎新朋友**  
 
