@@ -123,43 +123,43 @@ namespace AMCCS
 		//周期 更新输出(默认每秒3次)
 		int period__update_output = 20;
 
-		//延时 释放(默认无延时)
+		//时刻 释放(默认无延迟)
 		int delay_release = 1;
-		//延时 分离开始(默认无延时)
+		//时刻 分离开始(默认无时刻)
 		int delay__detach_begin = 1;
-		//延时 分离(默认2帧)
+		//时刻 分离(默认2帧)
 		int delay_detach = 2;
-		//延时 分离结束(默认10帧)
+		//时刻 分离结束(默认10帧)
 		int delay__detach_end = 10;
-		//延时 尝试激活炮弹
+		//时刻 尝试激活炮弹
 		int delay__try_activate_shell = 5;
-		//延时 尝试断开炮弹连接
+		//时刻 尝试断开炮弹连接
 		int delay__try_disconnect_shell = 10;
-		//延时 伸展(取值 [3, 5] 内比较合适)
+		//时刻 伸展(取值 [3, 5] 内比较合适)
 		int delay__pistons_extend = 5;
-		//延时 固定(默认35帧后附着)
+		//时刻 固定(默认35帧后附着)
 		int delay_attach = 35;
-		//延时 收缩(默认150帧后收缩)
+		//时刻 收缩(默认150帧后收缩)
 		int dealy__pistons_retract = 150;
-		//延时 定时器 用户自定义接口0(默认无延时)
+		//时刻 定时器 用户自定义接口0(默认无延迟)
 		int delay__custom_interface_timer_0 = 1;
-		//延时 定时器 用户自定义接口1(默认180帧)
+		//时刻 定时器 用户自定义接口1(默认180帧)
 		int delay__custom_interface_timer_1 = 180;
-		//延时 完成装填(默认180帧)
+		//时刻 完成装填(默认180帧)
 		int delay__done_loading = 180;
 
-		//延时 第一次重载
+		//时刻 第一次重载
 		int delay__first_reload = 30;
-		//延时 暂停时长
+		//时刻 暂停时长
 		int delay_pausing = 20;
 
-		//延时 关闭固定器 (测试的稳定值在 [3, 5] 左右)
+		//时刻 关闭固定器 (测试的稳定值在 [3, 5] 左右)
 		int delay__disable_fixators = 3;
-		//延时 次要活塞伸展 (测试的稳定值在 1 左右)
+		//时刻 次要活塞伸展 (测试的稳定值在 1 左右)
 		int delay__minor_pistons_extend = 1;
-		//延时 开启固定器 (错位之后开启就行, 无其它要求)
+		//时刻 开启固定器 (错位之后开启就行, 无其它要求)
 		int delay__enable_fixators = 60;
-		//延时 次要活塞收缩 (测试的稳定值在 70 左右)
+		//时刻 次要活塞收缩 (测试的稳定值在 70 左右)
 		int delay__minor_pistons_retract = 80;
 
 
@@ -167,6 +167,8 @@ namespace AMCCS
 		double distance__warhead_savety_lock = 20.0;
 		//数量 倒计时秒数
 		double number__warhead_countdown_seconds = 30.0;
+		//时间 断开炮弹连接耗时
+		int time__disconnecting_shell = 10;
 
 		//以上是脚本配置字段
 
@@ -1095,6 +1097,7 @@ namespace AMCCS
 			config_set__script.add_line("ABOUT SHELL ACTIVATION");
 			config_set__script.add_config_item(nameof(distance__warhead_savety_lock),() => distance__warhead_savety_lock,x => { distance__warhead_savety_lock=(double)x; });
 			config_set__script.add_config_item(nameof(number__warhead_countdown_seconds),() => number__warhead_countdown_seconds,x => { number__warhead_countdown_seconds=(double)x; });
+			config_set__script.add_config_item(nameof(time__disconnecting_shell),() => time__disconnecting_shell,x => { time__disconnecting_shell=(int)x; });
 
 			//config_set__t.add_line("ABOUT CHARGE-TWICE CANNON");
 
@@ -1529,6 +1532,7 @@ namespace AMCCS
 						}
 						else
 							piston__speed_limit_breaker=list__speed_limmit_beakers.First();
+						//piston__speed_limit_breaker=list__speed_limmit_beakers.Last();
 					}
 				}
 
@@ -1619,7 +1623,7 @@ namespace AMCCS
 				{
 					status_cannon=CannonStatus.Pausing;//设置为暂停中
 					command_cannon=CannonCommand.Reload;//设置延迟装载命令
-					times_delay=program.delay__first_reload;//设置延时时长
+					times_delay=program.delay__first_reload;//设置时刻时长
 				}
 				else
 					status_cannon=CannonStatus.Ready;//设置为就绪状态
@@ -1842,7 +1846,7 @@ namespace AMCCS
 					if(count_status==program.delay__try_disconnect_shell&&command_cannon==CannonCommand.Fire)
 						try_disconnect_shell_0();
 					//if(count_status==program.delay__try_activate_shell+3&&!piston__speed_limit_breaker.IsAttached)
-					if((!piston__speed_limit_breaker.IsAttached)&&(count_status>program.delay__try_activate_shell))
+					if((!piston__speed_limit_breaker.IsAttached)&&(count_status>program.delay__try_activate_shell+program.time__disconnecting_shell))
 						try_disconnect_shell_1();
 				}
 

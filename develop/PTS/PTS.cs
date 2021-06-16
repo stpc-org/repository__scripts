@@ -40,7 +40,7 @@ namespace PTS
 
 		#region 脚本字段
 
-		string name_group = "Pistons_LIFT";
+		string name_group = "Pistons";
 
 		IMyBlockGroup group;
 
