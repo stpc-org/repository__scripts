@@ -59,7 +59,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
-namespace AN0FCS
+namespace AN0FCS_MAIN_DEV
 {
 	class Program:MyGridProgram
 	{

@@ -26,7 +26,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
-namespace AN0FCS_LAUNCHER
+namespace AN0FCS_LAUNCHER_DEV
 {
 	class Program:MyGridProgram
 	{
@@ -38,7 +38,7 @@ namespace AN0FCS_LAUNCHER
 		readonly string str__script_version = "AN0FCS-LAUNCHER V0.0.0 ";
 
 		//标签 脚本核心编组
-		string tag__script_core_group = "ANOFCS";
+		string tag__script_core_group = "AN0FCS";
 		//标签 高低转子(俯仰)
 		string tag__elevation_stators = "_V";
 		//标签 方向转子(偏航)
@@ -91,14 +91,14 @@ namespace AN0FCS_LAUNCHER
 				case UpdateType.Trigger:
 				case UpdateType.Script:
 				{
-					run_command(str_arg);
+					//run_command(str_arg);
 				}
 				break;
 				case UpdateType.Update1:
 				case UpdateType.Update10:
 				case UpdateType.Update100:
 				{
-					update_script();
+					//update_script();
 				}
 				break;
 			}
@@ -120,112 +120,10 @@ namespace AN0FCS_LAUNCHER
 			global=new GridsGraph(this);
 			Echo(global.builder_str__init_info.ToString());
 
-
 			config_script.init_config();//初始化配置
 			Echo(config_script.string_builder__error_info.ToString());
 
-
-			foreach(var item in global.list_displayers)//遍历显示器
-			{
-				//拆分显示器的用户数据
-				string[] array_str = split_string(item.CustomData);
-				bool flag_illegal = false;
-				int offset = 0;
-
-				DisplayUnit unit = new DisplayUnit(item);
-
-				if(array_str.Length==0)
-					unit.mode_display=DisplayUnit.DisplayMode.Page0;//用户数据为空
-				else
-				{
-					if(array_str[array_str.Length-1].Equals("graphic"))
-					{ offset=1; unit.flag_graphic=true; }
-					//用户数据不为空
-					switch(array_str[0])
-					{
-						case "graphic":
-						case "page0":
-						unit.mode_display=DisplayUnit.DisplayMode.Page0;
-						break;
-						case "page1":
-						unit.mode_display=DisplayUnit.DisplayMode.Page1;
-						break;
-						case "targets":
-						unit.mode_display=DisplayUnit.DisplayMode.Targets;
-						break;
-						case "turret":
-						{
-							if(array_str.Length==2+offset)
-							{
-								int index = 0;
-								if(!int.TryParse(array_str[1],out index))
-								{
-									flag_illegal=true;
-									break;
-								}
-								//边界检查
-								if(index<0||index>list_turrets.Count)
-								{
-									flag_illegal=true;
-									break;
-								}
-								unit.index_begin=index;
-								unit.mode_display=DisplayUnit.DisplayMode.SingleTurret;
-							}
-							else if(array_str.Length==3+offset)
-							{
-								int index_begin = 0, index_end = 0;
-								if(!int.TryParse(array_str[1],out index_begin))
-								{
-									flag_illegal=true;
-									break;
-								}
-								if(!int.TryParse(array_str[2],out index_end))
-								{
-									flag_illegal=true;
-									break;
-								}
-								//边界检查
-								if(index_begin<0||index_begin>list_turrets.Count)
-								{
-									flag_illegal=true;
-									break;
-								}
-								if(index_end<0||index_end>list_turrets.Count)
-								{
-									flag_illegal=true;
-									break;
-								}
-								unit.index_begin=index_begin;
-								unit.index_end=index_end;
-								unit.mode_display=DisplayUnit.DisplayMode.MultipleTurret;
-							}
-							else
-								flag_illegal=true;
-						}
-						break;
-						default:
-						unit.mode_display=DisplayUnit.DisplayMode.None;
-						break;
-					}
-				}
-
-				if(flag_illegal)
-					unit.mode_display=DisplayUnit.DisplayMode.None;
-
-				//自动设置LCD的显示模式
-				if(unit.flag_graphic)
-				{
-					item.ContentType=ContentType.SCRIPT;//设置为 脚本模式
-					item.Script="";//脚本设为 None
-					item.ScriptBackgroundColor=Color.Black;//黑色背景色
-				}
-				else
-					item.ContentType=ContentType.TEXT_AND_IMAGE;//设置为 文字与图片模式
-
-				//添加到列表
-				list__display_units.Add(unit);
-			}
+			//核心处理
 
 
 			if(str_error==null&&!config_script.flag__config_error)//检查是否出现错误
@@ -696,21 +594,96 @@ namespace AN0FCS_LAUNCHER
 		/**************************************************************************
 		* 类 自定义数据配置
 		* 自定义数据配置(下简称CD配置)使用目标方块的自定义数据来进行脚本配置
-		* 支持动态配置, 标题等, 功能强大
+		* 支持动态配置, 注释等, 功能强大
 		**************************************************************************/
+
+		//类 变量
+		public class Variant
+		{
+			//枚举 变量类型
+			public enum VType
+			{
+				//空, 未知, 布尔, 浮点, 整数, 字符串, V2D, V3D
+				None, Unknown, Bool, Float, Int, String, V2D, V3D,
+			}
+			public readonly string name = "undefined";//名称
+			public string value_str { get; private set; } = "";
+			public VType type_v { get; private set; } = VType.None;
+			Type type_sys;//类型
+			//值, 可以为空, 下为内置类型, 可以自行添加支持
+			bool? v_b;
+			long? v_l;
+			double? v_d;
+			string v_s = null;
+			Vector2D? v_v2d;
+			Vector3D? v_v3d;
+			//ScriptMode? v_sm;
+
+			//构造函数 传递类型和名称
+			public Variant(string _name,Type _type)
+			{
+				name=_name;
+				set_type(_type);
+			}
+
+			//设置类型, 并解析字符串
+			public void set_type(Type _type)
+			{
+				type_sys=_type;
+				if(type_sys.Equals(typeof(bool)))
+				{
+					type_v=VType.Bool;
+					bool t;
+					if(bool.TryParse(value_str,out t))
+						v_b=t;
+				}
+				else if(type_sys.Equals(typeof(long)))
+					type_v=VType.Int;
+				else if(type_sys.Equals(typeof(double)))
+					type_v=VType.Float;
+				else if(type_sys.Equals(typeof(string)))
+					type_v=VType.String;
+				else if(type_sys.Equals(typeof(Vector2D)))
+					type_v=VType.V2D;
+				else if(type_sys.Equals(typeof(Vector3D)))
+					type_v=VType.V3D;
+			}
+
+			public void get_value(ref bool v) => v=v_b.GetValueOrDefault();
+			public void get_value(ref long v) => v=v_l.GetValueOrDefault();
+			public void get_value(ref double v) => v=v_d.GetValueOrDefault();
+			public void get_value(ref string v) => v=v_s;
+			public void get_value(ref Vector2D v) => v=v_v2d.GetValueOrDefault();
+			public void get_value(ref Vector3D v) => v=v_v3d.GetValueOrDefault();
+
+			public void set_value(bool v) => v_b=v;
+			public void set_value(long v) => v_l=v;
+			public void set_value(double v) => v_d=v;
+			public void set_value(string v) => v_s=v;
+			public void set_value(Vector2D v) => v_v2d=v;
+			public void set_value(Vector3D v) => v_v3d=v;
+		}
 
 		//管理对象
 		class CustomDataConfig
 		{
+			//函数指针 读
+			public Func<string> get { get; private set; }
+			//函数指针 写
+			public Action<string> set { get; private set; }
+
 			//标识符 域
-			public static string identifier_scope = "##########";
+			public static string identifier_scope_0 = "##########";
+			public static string identifier_scope_1 = "##########";
 			//标识符 标题
-			public static string identifier_title = "==========";
+			public static string identifier_set_0 = "[";
+			public static string identifier_set_1 = "]";
 			//标识符 副标题
-			public static string identifier_subtitle = "----------";
+			public static string identifier_subtitle_0 = "//";
+			public static string identifier_subtitle_1 = "";
 
 			//配置标题
-			public string title_config { get; private set; }
+			public string title_scope { get; private set; }
 
 			//索引 范围开始
 			int index_begin = -1;
@@ -732,10 +705,11 @@ namespace AN0FCS_LAUNCHER
 			//标记 配置中发现错误(存在错误时不会覆盖写入)
 			public bool flag__config_error { get; private set; } = false;
 
-			public CustomDataConfig(IMyTerminalBlock block_target, string title_config)
+			public CustomDataConfig(string _title_scope,Action<string> setter,Func<string> getter)
 			{
-				this.block_target=block_target;
-				this.title_config=title_config;
+				set=setter;
+				get=getter;
+				title_scope=_title_scope;
 			}
 
 			//初始化配置
@@ -759,16 +733,17 @@ namespace AN0FCS_LAUNCHER
 			public void parse_custom_data()
 			{
 				string[] array_lines = block_target.CustomData.Split('\n');//以换行符拆分
-				string pattern_set = $"{identifier_title} (.+) {identifier_title}";//正则表达式
-				string pattern_scope = $"{identifier_scope} (.+) {identifier_scope}";//正则表达式
+				string pattern_set = $"\\[ (.+) \\]";//正则表达式
+				string pattern_scope = $"{identifier_scope_0} {title_scope} {identifier_scope_1}";//正则表达式
 				var regex_set = new System.Text.RegularExpressions.Regex(pattern_set);
 				var regex_scope = new System.Text.RegularExpressions.Regex(pattern_scope);
 				string title_crt = "";
 				bool flag__config_start = false;
-				int index = 0;
-				foreach(var line in array_lines)
+				int index = 0, index_line = 0, len_line;
+				for(;index_line<array_lines.Length;++index_line, index+=len_line)
 				{
-					if(line.Length==0) continue;//跳过
+					var line = array_lines[index_line]; len_line=line.Length+1;
+					if(line.Length==0) continue;
 					var match_scope = regex_scope.Match(line);//scope边界匹配
 					var match_set = regex_set.Match(line);//配置集标题匹配
 					if(flag__config_start)//已开始
@@ -788,14 +763,13 @@ namespace AN0FCS_LAUNCHER
 						}
 						continue;
 					}
-					index+=line.Length;//更新索引
 					if(match_set.Success)//匹配成功, 新的配置集
 						dict__str_contents[title_crt=match_set.Groups[1].ToString()]=new List<string>();
 					else if(dict__str_contents.ContainsKey(title_crt))
 						dict__str_contents[title_crt].Add(line);//条目添加到容器中
 					else
 					{
-						string_builder__error_info.Append($"<error> illegal CD config data: \n{line}\n");
+						string_builder__error_info.Append($"<error> illegal CD config data at line #{index_line}: \n{line}\n");
 						flag__config_error=true; break;
 					}
 				}
@@ -815,12 +789,14 @@ namespace AN0FCS_LAUNCHER
 			{
 				if(index_begin>=0)
 					string_builder__data.Append(block_target.CustomData.Substring(0,index_begin));
+				string_builder__data.Append(identifier_scope_0+$" {title_scope} "+identifier_scope_1+"\n");
 				foreach(var item in dict__config_sets)
 				{
 					item.Value.generate_string_data();
 					string_builder__data.Append(item.Value.string_builder__data);
 				}
-				if(index_end>=0)
+				string_builder__data.Append(identifier_scope_0+$" {title_scope} "+identifier_scope_1);
+				if(index_end>=0&&index_end<block_target.CustomData.Length)
 					string_builder__data.Append(block_target.CustomData.Substring(index_end));
 				block_target.CustomData=string_builder__data.ToString();
 			}
@@ -828,27 +804,11 @@ namespace AN0FCS_LAUNCHER
 		//CD配置集合
 		class CustomDataConfigSet
 		{
-			//类 配置项指针
-			public class ConfigItemReference
-			{
-				//读委托
-				public Func<object> get { get; private set; }
-
-				//写委托
-				public Action<object> set { get; private set; }
-
-				//构造函数 传递委托(委托类似于函数指针, 用于像指针那样读写变量)
-				public ConfigItemReference(Func<object> _getter,Action<object> _setter)
-				{
-					get=_getter; set=_setter;
-				}
-			}
-
-			//配置集标题
+			//标题 配置集
 			public string title__config_set { get; private set; }
 
-			//字典 配置项字典
-			Dictionary<string,ConfigItemReference> dict__config_items = new Dictionary<string,ConfigItemReference>();
+			//字典 项字典
+			Dictionary<string,Variant> dict__config_items = new Dictionary<string,Variant>();
 
 			//字符串构建器 数据
 			public StringBuilder string_builder__data { get; private set; } = new StringBuilder();
@@ -859,22 +819,30 @@ namespace AN0FCS_LAUNCHER
 			public bool flag__config_error { get; private set; } = false;
 
 			//构造函数
-			public CustomDataConfigSet(string title_config = "SCRIPT CONFIGURATION")
+			public CustomDataConfigSet(string title = "SCRIPT MAIN CONFIGURATION")
 			{
-				this.title__config_set=title_config;
+				this.title__config_set=title;
 			}
 
 			//添加配置项
-			public bool add_config_item(string name_config_item,Func<object> getter,Action<object> setter)
+			public bool add_item(string name_item,Type type)
 			{
-				if(dict__config_items.ContainsKey(name_config_item))
-					return false;
-				dict__config_items.Add(name_config_item,new ConfigItemReference(getter,setter));
+				if(dict__config_items.ContainsKey(name_item))
+				{
+					var v = dict__config_items[name_item];
+					if(v.type_v==Variant.VType.Unknown)
+						v.set_type(type);
+				}
+				dict__config_items.Add(name_item,new Variant(name_item,type));
 				return true;
 			}
 
-			//添加分割线
-			public bool add_line(string str_title)
+			//获取变量
+			public Variant get_item(string name_item)
+			=> dict__config_items.ContainsKey(name_item) ? dict__config_items[name_item] : null;
+
+			//添加注释
+			public bool add_annotation(string str_title)
 			{
 				//检查是否已经包含此配置项目
 				if(dict__config_items.ContainsKey(str_title))
@@ -906,7 +874,7 @@ namespace AN0FCS_LAUNCHER
 					++count;
 					if(line.Length==0)
 						continue;//跳过空行
-					if(line.StartsWith(CustomDataConfig.identifier_subtitle))
+					if(line.StartsWith(CustomDataConfig.identifier_subtitle_0))
 						continue;
 					//以等号拆分
 					string[] pair = line.Split('=');
@@ -922,7 +890,7 @@ namespace AN0FCS_LAUNCHER
 					string name__config_item = pair[0].Trim();
 					string str_value__config_item = pair[1].Trim();
 
-					ConfigItemReference reference;
+					Variant reference;
 					//尝试获取
 					if(!dict__config_items.TryGetValue(name__config_item,out reference))
 						continue;//不包含值, 跳过
@@ -948,7 +916,7 @@ namespace AN0FCS_LAUNCHER
 				int count = 0;
 
 				string_builder__data.Clear();
-				string_builder__data.Append($"{CustomDataConfig.identifier_title} {title__config_set} {CustomDataConfig.identifier_title}\n");
+				string_builder__data.Append($"{CustomDataConfig.identifier_set_0} {title__config_set} {CustomDataConfig.identifier_set_1}\n");
 				foreach(var pair in dict__config_items)
 				{
 					if(pair.Value!=null)
@@ -956,7 +924,7 @@ namespace AN0FCS_LAUNCHER
 					else
 					{
 						if(count!=0) string_builder__data.Append("\n");
-						string_builder__data.Append($"{CustomDataConfig.identifier_subtitle} {pair.Key} {CustomDataConfig.identifier_subtitle}\n");
+						string_builder__data.Append($"{CustomDataConfig.identifier_subtitle_0} {pair.Key} {CustomDataConfig.identifier_subtitle_1}\n");
 					}
 					++count;
 				}
@@ -1015,6 +983,15 @@ namespace AN0FCS_LAUNCHER
 				{
 					v=str;
 					return true;
+				}
+				else if(v is ScriptMode)
+				{
+					ScriptMode value_parsed;
+					if(ScriptMode.TryParse(str,out value_parsed))
+					{
+						v=value_parsed;
+						return true;
+					}
 				}
 				return false;
 			}
