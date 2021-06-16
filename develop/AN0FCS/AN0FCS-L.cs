@@ -632,10 +632,8 @@ namespace AN0FCS_LAUNCHER_DEV
 				type_sys=_type;
 				if(type_sys.Equals(typeof(bool)))
 				{
-					type_v=VType.Bool;
-					bool t;
-					if(bool.TryParse(value_str,out t))
-						v_b=t;
+					type_v=VType.Bool; bool t;
+					if(bool.TryParse(value_str,out t)) v_b=t;
 				}
 				else if(type_sys.Equals(typeof(long)))
 					type_v=VType.Int;
