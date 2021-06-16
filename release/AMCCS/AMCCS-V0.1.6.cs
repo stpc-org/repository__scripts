@@ -1846,26 +1846,32 @@ namespace AMCCS
 					if(count_status==program.delay__try_disconnect_shell&&command_cannon==CannonCommand.Fire)
 						try_disconnect_shell_0();
 					//if(count_status==program.delay__try_activate_shell+3&&!piston__speed_limit_breaker.IsAttached)
-					if((!piston__speed_limit_breaker.IsAttached)&&(count_status>program.delay__try_activate_shell+program.time__disconnecting_shell))
-						try_disconnect_shell_1();
+					if((!piston__speed_limit_breaker.IsAttached)
+						&&(count_status>=program.delay__try_activate_shell+program.time__disconnecting_shell))
+							try_disconnect_shell_1();
 				}
 
 				if(flag__enable_two_stage_mode)
 				{
 					if(count_status==program.delay__disable_fixators)
 					{
-						disable_fixators();//禁用固定器
-										   //若是重载命令, 则次要活塞伸展延迟到此步骤执行
+						//禁用固定器
+						disable_fixators();
+						//若是重载命令, 则次要活塞伸展延迟到此步骤执行
 						if(command_cannon==CannonCommand.Reload)
-							minor_pistons_extend();//伸展次要活塞
+							//伸展次要活塞
+							minor_pistons_extend();
 					}
 					if(count_status==program.delay__minor_pistons_extend)
 						if(command_cannon==CannonCommand.Fire)
-							minor_pistons_extend();//伸展次要活塞
+							//伸展次要活塞
+							minor_pistons_extend();
 					if(!flag__all_fixators_enabled&&count_status>=program.delay__enable_fixators)
-						enable_fixators();//启用固定器
+						//启用固定器
+						enable_fixators();
 					if(count_status==program.delay__minor_pistons_retract)
-						minor_pistons_retract();//收缩次要活塞
+						//收缩次要活塞
+						minor_pistons_retract();
 				}
 
 				if(count_status==program.delay__done_loading)
