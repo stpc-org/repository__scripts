@@ -14,7 +14,7 @@
 
 //在游戏内使用脚本时确保下面一行代码被注释
 //在开发过程中取消注释来获取完整的代码提示和代码补全
-//#define DEVELOP
+#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Game.GUI.TextPanel;
@@ -67,6 +68,8 @@ namespace PTS
 
 			if(list_pistons.Count==0)
 				Echo($"<error> no pistons in group");
+
+			ITerminalProperty p;
 
 			Echo("<done> init");
 		}
