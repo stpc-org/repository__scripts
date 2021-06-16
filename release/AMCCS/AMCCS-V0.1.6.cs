@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Game.GUI.TextPanel;
@@ -34,10 +35,10 @@ namespace AMCCS
 	{
 #endif
 
-		#region 脚本字段
+#region 脚本字段
 
-		//字符串 脚本版本号
-		readonly string str__script_version = "AMCCS V0.1.6 ";
+//字符串 脚本版本号
+readonly string str__script_version = "AMCCS V0.1.6 ";
 		//数组 运行时字符显示
 		string[] array__runtime_chars = new string[]
 		{

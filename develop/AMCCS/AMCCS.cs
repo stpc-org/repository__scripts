@@ -22,13 +22,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Game.GUI.TextPanel;
 using VRage.Game;
 using VRageMath;
 
-namespace AMCCS_DEV
+namespace AMCCS
 {
 	class Program:MyGridProgram
 	{
@@ -123,43 +124,43 @@ namespace AMCCS_DEV
 		//周期 更新输出(默认每秒3次)
 		int period__update_output = 20;
 
-		//延时 释放(默认无延时)
+		//时刻 释放(默认无延迟)
 		int delay_release = 1;
-		//延时 分离开始(默认无延时)
+		//时刻 分离开始(默认无时刻)
 		int delay__detach_begin = 1;
-		//延时 分离(默认2帧)
+		//时刻 分离(默认2帧)
 		int delay_detach = 2;
-		//延时 分离结束(默认10帧)
+		//时刻 分离结束(默认10帧)
 		int delay__detach_end = 10;
-		//延时 尝试激活炮弹
+		//时刻 尝试激活炮弹
 		int delay__try_activate_shell = 5;
-		//延时 尝试断开炮弹连接
+		//时刻 尝试断开炮弹连接
 		int delay__try_disconnect_shell = 10;
-		//延时 伸展(取值 [3, 5] 内比较合适)
+		//时刻 伸展(取值 [3, 5] 内比较合适)
 		int delay__pistons_extend = 5;
-		//延时 固定(默认35帧后附着)
+		//时刻 固定(默认35帧后附着)
 		int delay_attach = 35;
-		//延时 收缩(默认150帧后收缩)
+		//时刻 收缩(默认150帧后收缩)
 		int dealy__pistons_retract = 150;
-		//延时 定时器 用户自定义接口0(默认无延时)
+		//时刻 定时器 用户自定义接口0(默认无延迟)
 		int delay__custom_interface_timer_0 = 1;
-		//延时 定时器 用户自定义接口1(默认180帧)
+		//时刻 定时器 用户自定义接口1(默认180帧)
 		int delay__custom_interface_timer_1 = 180;
-		//延时 完成装填(默认180帧)
+		//时刻 完成装填(默认180帧)
 		int delay__done_loading = 180;
 
-		//延时 第一次重载
+		//时刻 第一次重载
 		int delay__first_reload = 30;
-		//延时 暂停时长
+		//时刻 暂停时长
 		int delay_pausing = 20;
 
-		//延时 关闭固定器 (测试的稳定值在 [3, 5] 左右)
+		//时刻 关闭固定器 (测试的稳定值在 [3, 5] 左右)
 		int delay__disable_fixators = 3;
-		//延时 次要活塞伸展 (测试的稳定值在 1 左右)
+		//时刻 次要活塞伸展 (测试的稳定值在 1 左右)
 		int delay__minor_pistons_extend = 1;
-		//延时 开启固定器 (错位之后开启就行, 无其它要求)
+		//时刻 开启固定器 (错位之后开启就行, 无其它要求)
 		int delay__enable_fixators = 60;
-		//延时 次要活塞收缩 (测试的稳定值在 70 左右)
+		//时刻 次要活塞收缩 (测试的稳定值在 70 左右)
 		int delay__minor_pistons_retract = 80;
 
 
@@ -167,6 +168,8 @@ namespace AMCCS_DEV
 		double distance__warhead_savety_lock = 20.0;
 		//数量 倒计时秒数
 		double number__warhead_countdown_seconds = 30.0;
+		//时间 断开炮弹连接耗时
+		int time__disconnecting_shell = 10;
 
 		//以上是脚本配置字段
 
@@ -369,6 +372,12 @@ namespace AMCCS_DEV
 				{
 					case "fire":
 					fire_specific_group(index_group);
+					break;
+					case "fire_S":
+					fire_specific_group(index_group,FireMode.Salvo);
+					break;
+					case "fire_R":
+					fire_specific_group(index_group,FireMode.Round);
 					break;
 				}
 			}
@@ -687,11 +696,10 @@ namespace AMCCS_DEV
 		}
 
 		//特定编组射击
-		void fire_specific_group(int index_group = 0)
+		void fire_specific_group(int index_group = 0,FireMode mode = FireMode.None)
 		{
 			if(index_group>-1&&index_group<list__cannon_groups.Count)
-				list__cannon_groups[index_group].fire();
-			return;
+				list__cannon_groups[index_group].fire(mode);
 		}
 
 		//初始化脚本
@@ -1090,6 +1098,7 @@ namespace AMCCS_DEV
 			config_set__script.add_line("ABOUT SHELL ACTIVATION");
 			config_set__script.add_config_item(nameof(distance__warhead_savety_lock),() => distance__warhead_savety_lock,x => { distance__warhead_savety_lock=(double)x; });
 			config_set__script.add_config_item(nameof(number__warhead_countdown_seconds),() => number__warhead_countdown_seconds,x => { number__warhead_countdown_seconds=(double)x; });
+			config_set__script.add_config_item(nameof(time__disconnecting_shell),() => time__disconnecting_shell,x => { time__disconnecting_shell=(int)x; });
 
 			//config_set__t.add_line("ABOUT CHARGE-TWICE CANNON");
 
@@ -1524,6 +1533,7 @@ namespace AMCCS_DEV
 						}
 						else
 							piston__speed_limit_breaker=list__speed_limmit_beakers.First();
+						//piston__speed_limit_breaker=list__speed_limmit_beakers.Last();
 					}
 				}
 
@@ -1614,7 +1624,7 @@ namespace AMCCS_DEV
 				{
 					status_cannon=CannonStatus.Pausing;//设置为暂停中
 					command_cannon=CannonCommand.Reload;//设置延迟装载命令
-					times_delay=program.delay__first_reload;//设置延时时长
+					times_delay=program.delay__first_reload;//设置时刻时长
 				}
 				else
 					status_cannon=CannonStatus.Ready;//设置为就绪状态
@@ -1837,7 +1847,8 @@ namespace AMCCS_DEV
 					if(count_status==program.delay__try_disconnect_shell&&command_cannon==CannonCommand.Fire)
 						try_disconnect_shell_0();
 					//if(count_status==program.delay__try_activate_shell+3&&!piston__speed_limit_breaker.IsAttached)
-					if((!piston__speed_limit_breaker.IsAttached)&&(count_status>program.delay__try_activate_shell))
+					if((!piston__speed_limit_breaker.IsAttached)
+						&&(count_status>=program.delay__try_activate_shell+program.time__disconnecting_shell))
 						try_disconnect_shell_1();
 				}
 
@@ -1845,18 +1856,23 @@ namespace AMCCS_DEV
 				{
 					if(count_status==program.delay__disable_fixators)
 					{
-						disable_fixators();//禁用固定器
-										   //若是重载命令, 则次要活塞伸展延迟到此步骤执行
+						//禁用固定器
+						disable_fixators();
+						//若是重载命令, 则次要活塞伸展延迟到此步骤执行
 						if(command_cannon==CannonCommand.Reload)
-							minor_pistons_extend();//伸展次要活塞
+							//伸展次要活塞
+							minor_pistons_extend();
 					}
 					if(count_status==program.delay__minor_pistons_extend)
 						if(command_cannon==CannonCommand.Fire)
-							minor_pistons_extend();//伸展次要活塞
+							//伸展次要活塞
+							minor_pistons_extend();
 					if(!flag__all_fixators_enabled&&count_status>=program.delay__enable_fixators)
-						enable_fixators();//启用固定器
+						//启用固定器
+						enable_fixators();
 					if(count_status==program.delay__minor_pistons_retract)
-						minor_pistons_retract();//收缩次要活塞
+						//收缩次要活塞
+						minor_pistons_retract();
 				}
 
 				if(count_status==program.delay__done_loading)
@@ -2656,33 +2672,19 @@ namespace AMCCS_DEV
 
 		#region 配置通用
 
-		/**************************************************************************
+		/***************************************************************************************************
 		* 类 自定义数据配置
 		* 自定义数据配置(下简称CD配置)使用目标方块的自定义数据来进行脚本配置
 		* 支持动态配置, 标题等, 功能强大
-		**************************************************************************/
+		***************************************************************************************************/
 
 		//管理对象
-		class CustomDataConfig
+		public class CustomDataConfig
 		{
-			//标识符 域
-			public static string identifier_scope_0 = "##########";
-			public static string identifier_scope_1 = "##########";
-			//标识符 标题
-			public static string identifier_set_0 = "[";
-			public static string identifier_set_1 = "]";
-			//标识符 副标题
-			public static string identifier_subtitle_0 = "//";
-			public static string identifier_subtitle_1 = "";
-
-			//配置标题
-			public string title_scope { get; private set; }
-
-			//索引 范围开始
-			int index_begin = -1;
-			//索引 范围结束
-			int index_end = -1;
-
+			//分割线 标题
+			public static string separator_title = "##########";
+			//分割线 副标题
+			public static string separator_subtitle = "-----";
 			//映射表 配置项集合
 			Dictionary<string,CustomDataConfigSet> dict__config_sets = new Dictionary<string,CustomDataConfigSet>();
 			//映射表 字符串内容
@@ -2698,10 +2700,9 @@ namespace AMCCS_DEV
 			//标记 配置中发现错误(存在错误时不会覆盖写入)
 			public bool flag__config_error { get; private set; } = false;
 
-			public CustomDataConfig(IMyTerminalBlock block_target,string title_scope)
+			public CustomDataConfig(IMyTerminalBlock block_target)
 			{
 				this.block_target=block_target;
-				this.title_scope=title_scope;
 			}
 
 			//初始化配置
@@ -2724,44 +2725,22 @@ namespace AMCCS_DEV
 			//解析CD(拆分)
 			public void parse_custom_data()
 			{
-				string[] array_lines = block_target.CustomData.Split('\n');//以换行符拆分
-				string pattern_set = $"\\[ (.+) \\]";//正则表达式
-				string pattern_scope = $"{identifier_scope_0} {title_scope} {identifier_scope_1}";//正则表达式
-				var regex_set = new System.Text.RegularExpressions.Regex(pattern_set);
-				var regex_scope = new System.Text.RegularExpressions.Regex(pattern_scope);
+				//以换行符拆分
+				string[] array_lines = block_target.CustomData.Split('\n');
+				string pattern = $"{separator_title} (.+) {separator_title}";//正则表达式
+				var regex = new System.Text.RegularExpressions.Regex(pattern);
 				string title_crt = "";
-				bool flag__config_start = false;
-				int index = 0, index_line = 0, len_line;
-				for(;index_line<array_lines.Length;++index_line, index+=len_line)
+				foreach(var line in array_lines)
 				{
-					var line = array_lines[index_line]; len_line=line.Length+1;
+					var match = regex.Match(line);//正则匹配
 					if(line.Length==0) continue;
-					var match_scope = regex_scope.Match(line);//scope边界匹配
-					var match_set = regex_set.Match(line);//配置集标题匹配
-					if(flag__config_start)//已开始
-					{
-						if(match_scope.Success)
-						{
-							index_end=index+line.Length;
-							break;
-						}
-					}
-					else//未开始
-					{
-						if(match_scope.Success)//匹配成功
-						{
-							index_begin=index;
-							flag__config_start=true;
-						}
-						continue;
-					}
-					if(match_set.Success)//匹配成功, 新的配置集
-						dict__str_contents[title_crt=match_set.Groups[1].ToString()]=new List<string>();
+					else if(match.Success)
+						dict__str_contents[title_crt=match.Groups[1].ToString()]=new List<string>();
 					else if(dict__str_contents.ContainsKey(title_crt))
-						dict__str_contents[title_crt].Add(line);//条目添加到容器中
+						dict__str_contents[title_crt].Add(line);
 					else
 					{
-						string_builder__error_info.Append($"<error> illegal CD config data at line #{index_line}: \n{line}\n");
+						string_builder__error_info.Append($"<error> illegal CD config data: \n{line}\n");
 						flag__config_error=true; break;
 					}
 				}
@@ -2779,52 +2758,38 @@ namespace AMCCS_DEV
 			//写入方块CD
 			public void write_to_block_custom_data()
 			{
-				if(index_begin>=0)
-					string_builder__data.Append(block_target.CustomData.Substring(0,index_begin));
-				string_builder__data.Append(identifier_scope_0+$" {title_scope} "+identifier_scope_1+"\n");
 				foreach(var item in dict__config_sets)
 				{
 					item.Value.generate_string_data();
 					string_builder__data.Append(item.Value.string_builder__data);
 				}
-				string_builder__data.Append(identifier_scope_0+$" {title_scope} "+identifier_scope_1);
-				if(index_end>=0&&index_end<block_target.CustomData.Length)
-					string_builder__data.Append(block_target.CustomData.Substring(index_end));
 				block_target.CustomData=string_builder__data.ToString();
 			}
 		}
 		//CD配置集合
-		class CustomDataConfigSet
+		public class CustomDataConfigSet
 		{
 			//类 配置项指针
-			public class Variant
+			public class ConfigItemReference
 			{
-				string name;
-				Type type;
-				bool? v_b = null;
-				long? v_l = null;
-				double? v_d = null;
-				string v_s = null;
-				Vector2D? v_v2d = null;
-				Vector3D? v_v3d = null;
-
 				//读委托
-				//public Func<object> get { get; private set; }
-				//写委托
-				//public Action<object> set { get; private set; }
+				public Func<object> get { get; private set; }
 
-				//构造函数 传递类型和名称
-				public Variant(Func<object> _getter,Action<object> _setter,Type _type)
+				//写委托
+				public Action<object> set { get; private set; }
+
+				//构造函数 传递委托(委托类似于函数指针, 用于像指针那样读写变量)
+				public ConfigItemReference(Func<object> _getter,Action<object> _setter)
 				{
-					type=_type;
+					get=_getter; set=_setter;
 				}
 			}
 
-			//标题 配置集
+			//配置集标题
 			public string title__config_set { get; private set; }
 
 			//字典 配置项字典
-			Dictionary<string,Variant> dict__config_items = new Dictionary<string,Variant>();
+			Dictionary<string,ConfigItemReference> dict__config_items = new Dictionary<string,ConfigItemReference>();
 
 			//字符串构建器 数据
 			public StringBuilder string_builder__data { get; private set; } = new StringBuilder();
@@ -2835,17 +2800,17 @@ namespace AMCCS_DEV
 			public bool flag__config_error { get; private set; } = false;
 
 			//构造函数
-			public CustomDataConfigSet(string title = "SCRIPT MAIN CONFIGURATION")
+			public CustomDataConfigSet(string title_config = "SCRIPT CONFIGURATION")
 			{
-				this.title__config_set=title;
+				this.title__config_set=title_config;
 			}
 
 			//添加配置项
-			public bool add_config_item(string name_item,object item,Func<object> getter,Action<object> setter)
+			public bool add_config_item(string name_config_item,Func<object> getter,Action<object> setter)
 			{
-				if(dict__config_items.ContainsKey(name_item))
+				if(dict__config_items.ContainsKey(name_config_item))
 					return false;
-				dict__config_items.Add(name_item,new Variant(getter,setter,item.GetType()));
+				dict__config_items.Add(name_config_item,new ConfigItemReference(getter,setter));
 				return true;
 			}
 
@@ -2882,7 +2847,7 @@ namespace AMCCS_DEV
 					++count;
 					if(line.Length==0)
 						continue;//跳过空行
-					if(line.StartsWith(CustomDataConfig.identifier_subtitle_0))
+					if(line.StartsWith(CustomDataConfig.separator_subtitle))
 						continue;
 					//以等号拆分
 					string[] pair = line.Split('=');
@@ -2898,7 +2863,7 @@ namespace AMCCS_DEV
 					string name__config_item = pair[0].Trim();
 					string str_value__config_item = pair[1].Trim();
 
-					Variant reference;
+					ConfigItemReference reference;
 					//尝试获取
 					if(!dict__config_items.TryGetValue(name__config_item,out reference))
 						continue;//不包含值, 跳过
@@ -2924,7 +2889,7 @@ namespace AMCCS_DEV
 				int count = 0;
 
 				string_builder__data.Clear();
-				string_builder__data.Append($"{CustomDataConfig.identifier_set_0} {title__config_set} {CustomDataConfig.identifier_set_1}\n");
+				string_builder__data.Append($"{CustomDataConfig.separator_title} {title__config_set} {CustomDataConfig.separator_title}\n");
 				foreach(var pair in dict__config_items)
 				{
 					if(pair.Value!=null)
@@ -2932,7 +2897,7 @@ namespace AMCCS_DEV
 					else
 					{
 						if(count!=0) string_builder__data.Append("\n");
-						string_builder__data.Append($"{CustomDataConfig.identifier_subtitle_0} {pair.Key} {CustomDataConfig.identifier_subtitle_1}\n");
+						string_builder__data.Append($"{CustomDataConfig.separator_subtitle} {pair.Key} {CustomDataConfig.separator_subtitle}\n");
 					}
 					++count;
 				}
