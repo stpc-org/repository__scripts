@@ -311,9 +311,7 @@ namespace AMCCS
 			var cmd = split_string(str_arg);//空格拆分
 			++count__run_cmd;//更新计数
 			if(cmd.Count==0)
-			{
-				fire_specific_group(index_group);
-			}
+				fire();
 			else if(cmd.Count==1)
 			{
 				switch(cmd[0])//检查命令
