@@ -35,10 +35,10 @@ namespace AMCCS
 	{
 #endif
 
-#region 脚本字段
+		#region 脚本字段
 
-//字符串 脚本版本号
-readonly string str__script_version = "AMCCS V0.1.6 ";
+		//字符串 脚本版本号
+		readonly string str__script_version = "AMCCS V0.1.6 ";
 		//数组 运行时字符显示
 		string[] array__runtime_chars = new string[]
 		{
@@ -310,7 +310,11 @@ readonly string str__script_version = "AMCCS V0.1.6 ";
 		{
 			var cmd = split_string(str_arg);//空格拆分
 			++count__run_cmd;//更新计数
-			if(cmd.Count==1)
+			if(cmd.Count==0)
+			{
+				fire_specific_group(index_group);
+			}
+			else if(cmd.Count==1)
 			{
 				switch(cmd[0])//检查命令
 				{
@@ -319,7 +323,7 @@ readonly string str__script_version = "AMCCS V0.1.6 ";
 					fire();
 					break;
 					case "fire_SS"://开火
-					fire(FireMode.Salvo, FireMode.Salvo);
+					fire(FireMode.Salvo,FireMode.Salvo);
 					break;
 					case "fire_SR"://开火
 					fire(FireMode.Salvo,FireMode.Round);
@@ -696,7 +700,7 @@ readonly string str__script_version = "AMCCS V0.1.6 ";
 		}
 
 		//特定编组射击
-		void fire_specific_group(int index_group = 0, FireMode mode = FireMode.None)
+		void fire_specific_group(int index_group = 0,FireMode mode = FireMode.None)
 		{
 			if(index_group>-1&&index_group<list__cannon_groups.Count)
 				list__cannon_groups[index_group].fire(mode);
@@ -1849,7 +1853,7 @@ readonly string str__script_version = "AMCCS V0.1.6 ";
 					//if(count_status==program.delay__try_activate_shell+3&&!piston__speed_limit_breaker.IsAttached)
 					if((!piston__speed_limit_breaker.IsAttached)
 						&&(count_status>=program.delay__try_activate_shell+program.time__disconnecting_shell))
-							try_disconnect_shell_1();
+						try_disconnect_shell_1();
 				}
 
 				if(flag__enable_two_stage_mode)
