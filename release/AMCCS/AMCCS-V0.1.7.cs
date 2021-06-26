@@ -12,7 +12,7 @@
 ***************************************************************************************************/
 
 //使用脚本时确保下面一行代码被注释
-#define DEVELOP
+//#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
@@ -1837,7 +1837,7 @@ namespace AMCCS_DEV
 						flag_paused=true;
 						return;//强制退出
 					}
-				
+
 				//分离
 				if(count_status==program.delay__detach_begin)
 					if(command_cannon==CannonCommand.Fire)
