@@ -1,4 +1,4 @@
-﻿/********************************************************************************************************************************************************************************************************
+﻿/***************************************************************************************************
 *
 * ### AN0FCS's Not Only Fire Control System - launcher ###
 * ### AN0FCS-launcher | "匿名者" 火控系统启动器脚本 -- ###
@@ -7,7 +7,7 @@
 * ### STPC主群群号:320461590 我们欢迎新朋友 ---------- ###
 * 
 * 
-********************************************************************************************************************************************************************************************************/
+***************************************************************************************************/
 
 #define DEVELOP
 
@@ -38,29 +38,30 @@ namespace AN0FCS_LAUNCHER_DEV
 		readonly string str__script_version = "AN0FCS-LAUNCHER V0.0.0 ";
 
 		//标签 脚本核心编组
-		string tag__script_core_group = "AN0FCS";
+		string tag__script_core_group = "AN0-CORE";
 		//标签 高低转子(俯仰)
 		string tag__elevation_stators = "_V";
 		//标签 方向转子(偏航)
 		string tag__azimuth_stators = "_H";
 		//标签 高低机活塞网格(功能不推荐使用)
-		string tag__ele_pistons_gird = "ElevationPistonGrid";
+		//string tag__ele_pistons_gird = "ElevationPistonGrid";
 		//标签 指示器(优先考虑)
-		string tag_indicator = "indicator";
+		//string tag_indicator = "indicator";
 		//标签 阻塞连通性
 		string tag__blocking_connectivity = "blocked";
 		//标签 射击(主要用于区分定时器)
-		string tag_fire = "fire";
+		//string tag_fire = "fire";
 		//标签 停火
-		string tag_hold = "hold";
+		//string tag_hold = "hold";
 
 		//以上是脚本配置字段
 
 		//网格图结构
-		GridsGraph global;
-
-		CustomDataConfig config_script;//脚本配置
-		CustomDataConfigSet config_set__script;//脚本主配置集合
+		ObjectsManager manager_objects;
+		//脚本配置
+		DataConfig config_script;
+		//脚本配置集合
+		DataConfigSet config_set__script;
 
 
 		#endregion
@@ -87,20 +88,20 @@ namespace AN0FCS_LAUNCHER_DEV
 		{
 			switch(type_update)
 			{
-				case UpdateType.Terminal:
-				case UpdateType.Trigger:
-				case UpdateType.Script:
-				{
-					//run_command(str_arg);
-				}
-				break;
-				case UpdateType.Update1:
-				case UpdateType.Update10:
-				case UpdateType.Update100:
-				{
-					//update_script();
-				}
-				break;
+			case UpdateType.Terminal:
+			case UpdateType.Trigger:
+			case UpdateType.Script:
+			{
+				//run_command(str_arg);
+			}
+			break;
+			case UpdateType.Update1:
+			case UpdateType.Update10:
+			case UpdateType.Update100:
+			{
+				//update_script();
+			}
+			break;
 			}
 		}
 
@@ -116,41 +117,269 @@ namespace AN0FCS_LAUNCHER_DEV
 			//检查配置合法性
 			if(str_error!=null) Echo(str_error);
 
-			//构建网格图 传递program指针
-			global=new GridsGraph(this);
-			Echo(global.builder_str__init_info.ToString());
-
 			config_script.init_config();//初始化配置
 			Echo(config_script.string_builder__error_info.ToString());
 
+			//构建网格图 传递program指针
+			manager_objects=new ObjectsManager(this);
+			Echo(manager_objects.builder_str__init_info.ToString());
+
+			Echo($"test: {tag__script_core_group}");
+
 			//核心处理
+			write_config_to_blocks_custom_data();
+
+			//本脚步不自动刷新
+			//if(str_error==null&&!config_script.flag__config_error)//检查是否出现错误
+			//	Runtime.UpdateFrequency=UpdateFrequency.Update1;//设置执行频率 每1帧一次
+		}
+
+		//配置参数写入至方块CD中
+		void write_config_to_blocks_custom_data()
+		{
+			string str_config = "";
+			long index_turret = 0;
+
+			//创建配置对象
+			DataConfig config = new DataConfig("ANO-L");
+			DataConfigSet set_config = new DataConfigSet("BLOCK CONFIGURATION");
+
+			//添加
+			config.add_config_set(set_config);
+
+			//方块类型
+			var variant__block_type = new Variant("type_block",Variant.VType.String);
+			//炮塔索引
+			var variant__index_turret = new Variant("index_turret",Variant.VType.Int);
+			//高低部件索引
+			var variant__index__elevation_componnet = new Variant("index__elevation_componnet",Variant.VType.Int);
+			//额外信息(字符串)
+			var variant__additional_info = new Variant("info_additional",Variant.VType.String).set_value(AdditionalInfo.None.ToString()); ;
+			//额外数据(浮点数)
+			var variant__additional_data = new Variant("data_additional",Variant.VType.Float).set_value(0.0d);
+
+			set_config.add_item(variant__block_type);
+			set_config.add_item(variant__index_turret);
+			set_config.add_item(variant__additional_info);
+			set_config.add_item(variant__additional_data);
+
+			//全局方块
+
+			//控制器
+			variant__block_type.set_value(BlockType.Controller.ToString());
+			foreach(var item in manager_objects.list_controllers)
+			{
+				//设置写入字符串
+				config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+				config.parse_str_data();
+				config.write_to_string();
+			}
+
+			//遍历所有炮塔
+			foreach(var turret in manager_objects.list__turret_core_structures)
+			{
+				//设置数据
+
+				//这一项无需更改
+				variant__index_turret.set_value(index_turret);
+
+				//摄像头
+				variant__block_type.set_value(BlockType.Camera.ToString());
+				foreach(var item in turret.list_cameras)
+				{
+					//设置写入字符串
+					config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+
+				//探测器
+				variant__block_type.set_value(BlockType.Sensor.ToString());
+				foreach(var item in turret.list_sensors)
+				{
+					//设置写入字符串
+					config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+
+				//武器方块
+				variant__block_type.set_value(BlockType.Weapon.ToString());
+				foreach(var item in turret.list_weapons)
+				{
+					//设置写入字符串
+					config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+
+				//陀螺仪
+				variant__block_type.set_value(BlockType.Gyroscope.ToString());
+				foreach(var item in turret.list_gyros)
+				{
+					//设置写入字符串
+					config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+
+				//定时器
+				variant__block_type.set_value(BlockType.Timer.ToString());
+				foreach(var item in turret.list_timers)
+				{
+					//设置写入字符串
+					config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+
+				//方向机
+				variant__block_type.set_value(BlockType.AStator.ToString());
+				foreach(var kvp in turret.dict__azimuth_stators_logical)
+				{
+					//方向机需要提供额外的安装方式信息(正向或反向或不可用)
+					variant__additional_info.set_value(kvp.Value.ToString());
+
+					//设置写入字符串
+					config.set_string(() => kvp.Key.CustomData,x => { kvp.Key.CustomData=(string)x; });
+					config.parse_str_data();
+					config.write_to_string();
+				}
+				//重置
+				variant__additional_info.set_value(AdditionalInfo.None.ToString());
+
+				//子炮塔也需要区分索引
+				set_config.add_item(variant__index__elevation_componnet);//炮塔索引
+
+				long index__elevation_componnet = 0;
+				//遍历高低部件
+				foreach(var subturret in turret.list__elevation_component)
+				{
+					//设置高低部件索引
+					variant__index__elevation_componnet.set_value(index__elevation_componnet++);
+
+					//控制器
+					variant__block_type.set_value(BlockType.Controller.ToString());
+					foreach(var item in subturret.list_controllers)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//摄像头
+					variant__block_type.set_value(BlockType.Camera.ToString());
+					foreach(var item in subturret.list_cameras)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//探测器
+					variant__block_type.set_value(BlockType.Sensor.ToString());
+					foreach(var item in subturret.list_sensors)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//武器方块
+					variant__block_type.set_value(BlockType.Weapon.ToString());
+					foreach(var item in subturret.list_weapons)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//陀螺仪
+					variant__block_type.set_value(BlockType.Gyroscope.ToString());
+					foreach(var item in subturret.list_gyros)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//活塞
+					variant__block_type.set_value(BlockType.Piston.ToString());
+					foreach(var item in subturret.list_pistons)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//定时器
+					variant__block_type.set_value(BlockType.Timer.ToString());
+					foreach(var item in subturret.list_timers)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//其它方块
+					variant__block_type.set_value(BlockType.Other.ToString());
+					foreach(var item in subturret.list__other_blocks)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+					//高低机
+					variant__block_type.set_value(BlockType.EStator.ToString());
+					foreach(var item in subturret.list__elevation_stators)
+					{
+						//设置写入字符串
+						config.set_string(() => item.CustomData,x => { item.CustomData=(string)x; });
+						config.parse_str_data();
+						config.write_to_string();
+					}
+
+				}
 
 
-			if(str_error==null&&!config_script.flag__config_error)//检查是否出现错误
-				Runtime.UpdateFrequency=UpdateFrequency.Update1;//设置执行频率 每1帧一次
+			}
+
+
 		}
 
 		//初始化脚本配置
 		void init_script_config()
 		{
 			//脚本配置实例
-			config_script=new CustomDataConfig(Me);
+			config_script=new DataConfig("ANO-L");
+			config_script.set_string(() => Me.CustomData,(x) => Me.CustomData=x);
 
-			config_set__script=new CustomDataConfigSet("SCRIPT CONFIGURATION");
+			config_set__script=new DataConfigSet("ANO-L CONFIGURATION");
 
+			config_set__script.add_item((new Variant(nameof(tag__script_core_group),Variant.VType.String,() => tag__script_core_group,x => { tag__script_core_group=(string)x; })));
+			config_set__script.add_item((new Variant(nameof(tag__elevation_stators),Variant.VType.String,() => tag__elevation_stators,x => { tag__elevation_stators=(string)x; })));
+			config_set__script.add_item((new Variant(nameof(tag__azimuth_stators),Variant.VType.String,() => tag__azimuth_stators,x => { tag__azimuth_stators=(string)x; })));
 			//添加配置项
-			config_set__script.add_config_item(nameof(tag__script_core_group),() => tag__script_core_group,x => { tag__script_core_group=(string)x; });
-			config_set__script.add_config_item(nameof(tag__elevation_stators),() => tag__elevation_stators,x => { tag__elevation_stators=(string)x; });
-			config_set__script.add_config_item(nameof(tag__azimuth_stators),() => tag__azimuth_stators,x => { tag__azimuth_stators=(string)x; });
-			config_set__script.add_config_item(nameof(tag_indicator),() => tag_indicator,x => { tag_indicator=(string)x; });
-			config_set__script.add_config_item(nameof(tag__blocking_connectivity),() => tag__blocking_connectivity,x => { tag__blocking_connectivity=(string)x; });
-			config_set__script.add_config_item(nameof(tag_fire),() => tag_fire,x => { tag_fire=(string)x; });
-			config_set__script.add_config_item(nameof(tag_hold),() => tag_hold,x => { tag_hold=(string)x; });
+			//config_set__script.add_config_item(nameof(tag_indicator),() => tag_indicator,x => { tag_indicator=(string)x; });
+			//config_set__script.add_config_item(nameof(tag__blocking_connectivity),() => tag__blocking_connectivity,x => { tag__blocking_connectivity=(string)x; });
+			//config_set__script.add_config_item(nameof(tag_fire),() => tag_fire,x => { tag_fire=(string)x; });
+			//config_set__script.add_config_item(nameof(tag_hold),() => tag_hold,x => { tag_hold=(string)x; });
 
 			config_script.add_config_set(config_set__script);
 
 			//初始化配置
-			config_script.parse_str_data();
+			//config_script.parse_str_data();
+			// 写入
+			//config_script.write_to_string();
 
 		}
 
@@ -165,13 +394,84 @@ namespace AN0FCS_LAUNCHER_DEV
 
 		#region 类型定义
 
+		//方块类型
+		enum BlockType
+		{
+			//控制器, 方向机, 高低机, 摄像头, 探测器, 武器, 自动炮塔, 陀螺仪, 活塞, 定时器, 其它.
+			Controller, AStator, EStator, Camera, Sensor, Weapon, AutoTurret, Gyroscope, Piston, Timer, Other,
+		}
+
+		//补充信息
+		enum AdditionalInfo
+		{
+			//空, 不可用, 正向, 倒置, 指示器, 阻塞, 开火, 停火
+			None, Invalid, Forward, Inverted, Indicator, Blocked, Fire, Hold,
+		}
+
+		//枚举 电机安装类型
+		enum MotorMountingType
+		{
+			//正向安装, 倒置安装, 不可用的, 未知
+			Forward, Inverted, Invalid, None,
+		}
+
+		/**************************************************************************
+		* 类 ElevationComponentCoreStructure
+		* 高低部件核心结构
+		**************************************************************************/
+		class ElevationComponentCoreStructure
+		{
+			//列表(多个) 各类元件
+			public List<IMyShipController> list_controllers = new List<IMyShipController>();
+			public List<IMyCameraBlock> list_cameras = new List<IMyCameraBlock>();
+			public List<IMySensorBlock> list_sensors = new List<IMySensorBlock>();
+			public List<IMyUserControllableGun> list_weapons = new List<IMyUserControllableGun>();
+			public List<IMyGyro> list_gyros = new List<IMyGyro>();
+			public List<IMyPistonBase> list_pistons = new List<IMyPistonBase>();
+			public List<IMyTimerBlock> list_timers = new List<IMyTimerBlock>();
+			public List<IMyTerminalBlock> list_indicators = new List<IMyTerminalBlock>();
+			public List<IMyTerminalBlock> list__other_blocks = new List<IMyTerminalBlock>();
+			//列表 高低机(转子, 活塞)
+			public List<IMyMotorStator> list__elevation_stators = new List<IMyMotorStator>();
+
+			//哈希集合 炮塔全部网格
+			public HashSet<IMyCubeGrid> set_grids = new HashSet<IMyCubeGrid>();
+			public bool flag_valid = true;
+		}
+
+		/**************************************************************************
+		* 类 TurretCoreStructure
+		* 炮塔核心结构, 将这个对象传递给类Turret的构造函数来构造一个炮塔
+		* 本类实例包含了炮塔的全部网格对象, 水平电机和垂直电机对象
+		**************************************************************************/
+		class TurretCoreStructure
+		{
+			//列表(多个) 各类元件
+			public List<IMyCameraBlock> list_cameras = new List<IMyCameraBlock>();
+			public List<IMySensorBlock> list_sensors = new List<IMySensorBlock>();
+			public List<IMyUserControllableGun> list_weapons = new List<IMyUserControllableGun>();
+			public List<IMyGyro> list_gyros = new List<IMyGyro>();
+			public List<IMyTimerBlock> list_timers = new List<IMyTimerBlock>();
+
+			//字典 水平电机和逻辑安装类型
+			public Dictionary<IMyMotorStator,MotorMountingType> dict__azimuth_stators_logical = new Dictionary<IMyMotorStator,MotorMountingType>();
+			//列表 水平电机
+			public List<IMyMotorStator> list__azimuth_stators = new List<IMyMotorStator>();
+			//列表 内部子炮塔
+			public List<ElevationComponentCoreStructure> list__elevation_component = new List<ElevationComponentCoreStructure>();
+
+			//哈希集合 炮塔全部网格
+			public HashSet<IMyCubeGrid> set_grids = new HashSet<IMyCubeGrid>();
+			public bool flag_valid = true;
+		}
+
 		/**************************************************
-		* 类 GridsGraph
-		* 网格图
+		* 类 ObjectsManager
+		* 对象管理器 (内部维护图结构)
 		* 非泛型通用类, 为本脚本设计, 无法移植
 		* 实例中包含本脚本所需的全部对象列表
 		**************************************************/
-		class GridsGraph
+		class ObjectsManager
 		{
 			//类 网格节点
 			public class Node
@@ -179,8 +479,9 @@ namespace AN0FCS_LAUNCHER_DEV
 				public int index;//索引 List容器中的索引
 				public IMyCubeGrid grid;//网格
 				public bool flag_turret;//标记 炮塔网格连通性
-				public bool flag_subturret;//标记 子炮塔网格连通性
-										   //列表(多个) 该网格上的各类元件
+				public bool flag__elevation_component;//标记 子炮塔网格连通性
+
+				//列表(多个) 该网格上的各类元件
 				public List<IMyShipController> list_controllers = new List<IMyShipController>();
 				public List<IMyCameraBlock> list_cameras = new List<IMyCameraBlock>();
 				public List<IMySensorBlock> list_sensors = new List<IMySensorBlock>();
@@ -191,8 +492,7 @@ namespace AN0FCS_LAUNCHER_DEV
 				public List<IMyTerminalBlock> list_indicators = new List<IMyTerminalBlock>();
 				public List<IMyTerminalBlock> list__other_blocks = new List<IMyTerminalBlock>();
 
-				public Node(int _index,IMyCubeGrid _grid = null)
-				{ index=_index; grid=_grid; }
+				public Node(int _index,IMyCubeGrid _grid = null) { index=_index; grid=_grid; }
 			}
 			//类 边额外信息
 			public class Edge
@@ -232,15 +532,17 @@ namespace AN0FCS_LAUNCHER_DEV
 			public List<IMyPistonBase> list_pistons { get; private set; } = new List<IMyPistonBase>();//列表 活塞
 			public List<IMyTimerBlock> list_timers { get; private set; } = new List<IMyTimerBlock>();//列表 定时器
 			public List<IMyTextPanel> list_displayers { get; private set; } = new List<IMyTextPanel>();//列表 显示器
-			public List<IMyTerminalBlock> list_indicators { get; private set; } = new List<IMyTerminalBlock>();//列表 强制指示器
+			public List<IMyTerminalBlock> list_indicators { get; private set; } = new List<IMyTerminalBlock>();//列表 指示器
+			public HashSet<IMyTerminalBlock> set_indicators { get; private set; } = new HashSet<IMyTerminalBlock>();//集合 指示器
 			public List<IMyTerminalBlock> list__other_blocks { get; private set; } = null;//列表 其它方块
 			public HashSet<long> set__self_ids { get; private set; } = new HashSet<long>();//哈希表 自身网格的ID
 			public List<Node> list_nodes { get; private set; } = new List<Node>();//列表 图的节点
 			Dictionary<IMyCubeGrid,int> dict__grids_index = new Dictionary<IMyCubeGrid,int>();//字典 根据网格快速检索节点索引
 			Dictionary<IMyMotorStator,Indexes> dict__edge_index_of_motor = new Dictionary<IMyMotorStator,Indexes>();//字典 根据电机查找它处在的边的索引
-																													//列表 炮塔核心结构列表 执行构造函数之后会生成此列表
+
+			//列表 炮塔核心结构列表 执行构造函数之后会生成此列表
 			public List<TurretCoreStructure> list__turret_core_structures { get; private set; } = new List<TurretCoreStructure>();
-			public List<SubTurretCoreStructure> list__subturret_core_structures { get; private set; } = new List<SubTurretCoreStructure>();
+			public List<ElevationComponentCoreStructure> list__elevation_component_core_structures { get; private set; } = new List<ElevationComponentCoreStructure>();
 
 			//字典 存储所有边, 考虑到用邻接矩阵来表示稀疏图, 时间空间浪费过大, 因此转而使用邻接表
 			List<Dictionary<int,Edge>> list_adjacency = new List<Dictionary<int,Edge>>();
@@ -250,7 +552,7 @@ namespace AN0FCS_LAUNCHER_DEV
 			public StringBuilder builder_str__init_info { get; private set; } = new StringBuilder();
 
 			//构造函数
-			public GridsGraph(Program _program)
+			public ObjectsManager(Program _program)
 			{
 				//成员赋值
 				p=_program;
@@ -268,8 +570,7 @@ namespace AN0FCS_LAUNCHER_DEV
 				group__script_core.GetBlocksOfType(list_pistons);
 				group__script_core.GetBlocksOfType(list_timers);
 				group__script_core.GetBlocksOfType(list_displayers);
-				foreach(var i in list_cameras) { i.EnableRaycast=true; if(p.flag__enable_n_raycast) i.Raycast(Double.NaN); }
-				foreach(var i in list_blocks) if(i.CustomData.StartsWith(p.tag_indicator)) list_indicators.Add(i);
+				//foreach(var i in list_blocks) if(i.CustomData.StartsWith(p.tag_indicator)) list_indicators.Add(i);
 
 				//查找其它方块
 				HashSet<IMyTerminalBlock> set_tmp, set_total = new HashSet<IMyTerminalBlock>(list_blocks);
@@ -329,7 +630,7 @@ namespace AN0FCS_LAUNCHER_DEV
 				//向邻接表中添加边
 				foreach(var item in list_mcbs)
 				{
-					if(item.CustomData.StartsWith(p.tag_blocked)||item.TopGrid==null)
+					if(item.CustomData.Contains(p.tag__blocking_connectivity)||item.TopGrid==null)
 						continue;//跳过被用户注册为阻塞的, 或无头部网格的机械连接方块
 					int index_from = dict__grids_index[item.CubeGrid];
 					int index_to = dict__grids_index[item.TopGrid];
@@ -398,26 +699,26 @@ namespace AN0FCS_LAUNCHER_DEV
 				foreach(var item in list_cameras)//BFS搜索
 				{
 					index=dict__grids_index[item.CubeGrid];
-					bfs_subturret(index);
+					bfs_elevation_component(index);
 				}
 				foreach(var item in list_weapons)//BFS搜索
 				{
 					index=dict__grids_index[item.CubeGrid];
-					bfs_subturret(index);
+					bfs_elevation_component(index);
 				}
 				foreach(var item in list_controllers)//BFS搜索
 				{
 					index=dict__grids_index[item.CubeGrid];
-					bfs_subturret(index);
+					bfs_elevation_component(index);
 				}
 				foreach(var item in list__other_blocks)//BFS搜索
 				{
 					index=dict__grids_index[item.CubeGrid];
-					bfs_subturret(index);
+					bfs_elevation_component(index);
 				}
 
 				//搜索液压杆
-				foreach(var item in list__subturret_core_structures)
+				foreach(var item in list__elevation_component_core_structures)
 				{
 
 				}
@@ -489,17 +790,17 @@ namespace AN0FCS_LAUNCHER_DEV
 				builder_str__init_info.Append($"<info> bfs_turret(): end\n\n");
 			}
 
-			private void bfs_subturret(int index_start)
+			private void bfs_elevation_component(int index_start)
 			{
-				if(list_nodes[index_start].flag_subturret)
+				if(list_nodes[index_start].flag__elevation_component)
 					return;//被搜索过了
 
 				Queue queue = new Queue();//队列 索引队列
 				queue.Enqueue(index_start);//起点入队列
-				list_nodes[index_start].flag_subturret=true;
-				SubTurretCoreStructure s__st_c = new SubTurretCoreStructure();//炮塔核心结构
+				list_nodes[index_start].flag__elevation_component=true;
+				ElevationComponentCoreStructure s__st_c = new ElevationComponentCoreStructure();//炮塔核心结构
 
-				builder_str__init_info.Append($"<info> bfs_subturret(): start {index_start} {list_nodes[index_start].grid.CustomName}\n");
+				builder_str__init_info.Append($"<info> bfs_elevation_component(): start {index_start} {list_nodes[index_start].grid.CustomName}\n");
 				bool flag_h = true;
 				while(queue.Count!=0)//主循环
 				{
@@ -517,8 +818,8 @@ namespace AN0FCS_LAUNCHER_DEV
 					s__st_c.list_indicators.AddRange(n_crt.list_indicators);
 					s__st_c.list__other_blocks.AddRange(n_crt.list__other_blocks);
 
-					if(n_crt.grid.CustomName.Contains(p.tag__ele_pistons_gird))
-						search_pistons(i_crt,s__st_c);//搜索活塞
+					//if(n_crt.grid.CustomName.Contains(p.tag__ele_pistons_gird))
+					//	search_pistons(i_crt,s__st_c);//搜索活塞
 
 					//遍历出边 找到没有阻塞性, 并且抵达的网格没有被标记过的的出边
 					foreach(var index_next in new List<int>(list_adjacency[i_crt].Keys))
@@ -533,19 +834,19 @@ namespace AN0FCS_LAUNCHER_DEV
 							continue;//跳过
 						}
 						//检查是否已经进入过队列
-						if(node_next.flag_subturret==false)
-						{ node_next.flag_subturret=true; queue.Enqueue(index_next); }
+						if(node_next.flag__elevation_component==false)
+						{ node_next.flag__elevation_component=true; queue.Enqueue(index_next); }
 
 					}
 				}//主循环结束
 				if(flag_h)
 					foreach(var item in list__turret_core_structures)//添加到炮塔核心结构
 						if(s__st_c.set_grids.IsSubsetOf(item.set_grids))
-							item.list__subturret.Add(s__st_c);
-				builder_str__init_info.Append($"<info> bfs_subturret(): end\n\n");
+							item.list__elevation_component.Add(s__st_c);
+				builder_str__init_info.Append($"<info> bfs_elevation_component(): end\n\n");
 			}
 			//搜索活塞
-			private void search_pistons(int index_start,SubTurretCoreStructure core)
+			private void search_pistons(int index_start,ElevationComponentCoreStructure core)
 			{
 				builder_str__init_info.Append($"<info> search_pistons(): start {index_start} {list_nodes[index_start].grid.CustomName}\n");
 				Queue queue = new Queue();//队列 索引队列
@@ -561,9 +862,9 @@ namespace AN0FCS_LAUNCHER_DEV
 					for(int index_next = 0;index_next<list_nodes.Count;++index_next)
 					{
 						Node node_next = list_nodes[index_next];//下一个节点
-						if(!list_adjacency[index_crt].ContainsKey(index_next)||!node_next.grid.CustomName.Contains(p.tag__ele_pistons_gird))
+						if(!list_adjacency[index_crt].ContainsKey(index_next)/*||!node_next.grid.CustomName.Contains(p.tag__ele_pistons_gird)*/)
 							continue;//不是出边或不是特定网格就跳过
-						if(node_next.flag_subturret==false) { node_next.flag_subturret=true; queue.Enqueue(index_next); }
+						if(node_next.flag__elevation_component==false) { node_next.flag__elevation_component=true; queue.Enqueue(index_next); }
 					}
 				}
 				builder_str__init_info.Append($"<info> search_pistons(): end\n\n");
@@ -571,19 +872,19 @@ namespace AN0FCS_LAUNCHER_DEV
 			//生成初始化信息
 			private void generate_init_info()
 			{
-				builder_str__init_info.Append($"<info> list_blocks.Count = {list_blocks.Count}\n");
-				builder_str__init_info.Append($"<info> list_cameras.Count = {list_cameras.Count}\n");
-				builder_str__init_info.Append($"<info> list_sensors.Count = {list_sensors.Count}\n");
-				builder_str__init_info.Append($"<info> list_controllers.Count = {list_controllers.Count}\n");
-				builder_str__init_info.Append($"<info> list_stators.Count = {list_stators.Count}\n");
-				builder_str__init_info.Append($"<info> list_weapons.Count = {list_weapons.Count}\n");
-				builder_str__init_info.Append($"<info> list__auto_turrets.Count = {list__auto_turrets.Count}\n");
-				builder_str__init_info.Append($"<info> list_gyroscopes.Count = {list_gyros.Count}\n");
-				builder_str__init_info.Append($"<info> list_timers.Count = {list_timers.Count}\n");
-				builder_str__init_info.Append($"<info> list_displayers.Count = {list_displayers.Count}\n");
-				builder_str__init_info.Append($"<info> list__other_blocks.Count = {list__other_blocks.Count}\n");
-
-				//buinder_str__init_info.Append($"<info> list__other_blocks.Count = {list__other_blocks.Count}\n");
+				builder_str__init_info.Append(
+					$"<info> list__turret_core_structures.Count = {list__turret_core_structures.Count}\n"
+					+$"<info> list_blocks.Count = {list_blocks.Count}\n"
+					+$"<info> list_cameras.Count = {list_cameras.Count}\n"
+					+$"<info> list_sensors.Count = {list_sensors.Count}\n"
+					+$"<info> list_controllers.Count = {list_controllers.Count}\n"
+					+$"<info> list_stators.Count = {list_stators.Count}\n"
+					+$"<info> list_weapons.Count = {list_weapons.Count}\n"
+					+$"<info> list__auto_turrets.Count = {list__auto_turrets.Count}\n"
+					+$"<info> list_gyroscopes.Count = {list_gyros.Count}\n"
+					+$"<info> list_timers.Count = {list_timers.Count}\n"
+					+$"<info> list_displayers.Count = {list_displayers.Count}\n"
+					+$"<info> list__other_blocks.Count = {list__other_blocks.Count}\n");
 			}
 		}
 
@@ -601,75 +902,54 @@ namespace AN0FCS_LAUNCHER_DEV
 		public class Variant
 		{
 			//枚举 变量类型
-			public enum VType
-			{
-				//空, 未知, 布尔, 浮点, 整数, 字符串, V3D
-				None, Unknown, Bool, Float, Int, String, V3D,
-			}
+			public enum VType { None, Unknown, Bool, Float, Int, String, V3D, }//空, 未知, 布尔, 浮点, 整数, 字符串, V3D
 			public readonly string name = "undefined";//名称
-			public string value_str { get; private set; } = "";
-			public VType type_v { get; private set; } = VType.None;
-			Type type_sys;//类型
+			public VType type_v = VType.None;
+			public object value;
+			public Func<object> get { get; private set; } = null;//读委托
+			public Action<object> set { get; private set; } = null;//写委托
+																   //bool? v_b; long? v_l; double? v_d; string v_s = null; Vector3D? v_v3d;
 
-			bool? v_b;
-			long? v_l;
-			double? v_d;
-			string v_s = null;
-			Vector3D? v_v3d;
-
-			//构造函数 传递类型和名称
-			public Variant(string _name,Type _type)
+			//构造函数 传递名称和类型
+			public Variant(string _name,VType _type = VType.String,Func<object> _getter = null,Action<object> _setter = null)
 			{
-				name=_name;
-				set_type(_type);
-			}
-
-			//设置类型, 并解析字符串
-			public void set_type(Type _type)
-			{
-				type_sys=_type;
-				if(type_sys.Equals(typeof(bool)))
+				name=_name; type_v=_type; get=_getter; set=_setter;
+				if(get==null&&set==null)
 				{
-					type_v=VType.Bool; bool t;
-					if(bool.TryParse(value_str,out t)) v_b=t;
-				}
-				else if(type_sys.Equals(typeof(long)))
-				{
-					type_v=VType.Int; long t;
-					if(long.TryParse(value_str,out t)) v_l=t;
-				}
-				else if(type_sys.Equals(typeof(double)))
-				{
-					type_v=VType.Float; double t;
-					if(double.TryParse(value_str,out t)) v_d=t;
-				}
-				else if(type_sys.Equals(typeof(string)))
-				{
-					type_v=VType.String;
-					v_s=value_str;
-				}
-				else if(type_sys.Equals(typeof(Vector3D)))
-				{
-					type_v=VType.V3D; Vector3D t;
-					if(Vector3D.TryParse(value_str,out t)) v_v3d=t;
+					get=() => value;
+					switch(type_v)
+					{
+					case VType.Bool: value=new bool(); set=x => { value=(bool)x; }; break;
+					case VType.Int: value=new long(); set=x => { value=(long)x; }; break;
+					case VType.Float: value=new double(); set=x => { value=(double)x; }; break;
+					case VType.String: value=""; set=x => { value=(string)x; }; break;
+					case VType.V3D: value=new Vector3D(); set=x => { value=(Vector3D)x; }; break;
+					}
 				}
 			}
 
-			public void get_value(ref bool v) => v=v_b.GetValueOrDefault();
-			public void get_value(ref long v) => v=v_l.GetValueOrDefault();
-			public void get_value(ref double v) => v=v_d.GetValueOrDefault();
-			public void get_value(ref string v) => v=v_s;
-			public void get_value(ref Vector3D v) => v=v_v3d.GetValueOrDefault();
+			public Variant set_value(Object value_new) { set(value_new); return this; }
+			public Object get_value() => get();
 
-			public void set_value(bool v) => v_b=v;
-			public void set_value(long v) => v_l=v;
-			public void set_value(double v) => v_d=v;
-			public void set_value(string v) => v_s=v;
-			public void set_value(Vector3D v) => v_v3d=v;
+			//解析字符串
+			public bool parse_string(string value_str)
+			{
+				switch(type_v)
+				{
+				case VType.Bool: bool b; if(bool.TryParse(value_str,out b)) set(b); else return false; break;
+				case VType.Int: long l; if(long.TryParse(value_str,out l)) set(l); else return false; break;
+				case VType.Float: double d; if(double.TryParse(value_str,out d)) set(d); else return false; break;
+				case VType.String: set(value_str); break;
+				case VType.V3D: Vector3D v3d; if(Vector3D.TryParse(value_str,out v3d)) set(v3d); else return false; break;
+				}
+				return true;
+			}
+
+			override public string ToString() => $"{name} = {(get==null ? value.ToString() : get().ToString())}\n";
 		}
 
 		//管理对象
-		class CustomDataConfig
+		class DataConfig
 		{
 			//函数指针 读
 			public Func<string> get { get; private set; }
@@ -682,9 +962,11 @@ namespace AN0FCS_LAUNCHER_DEV
 			//标识符 标题
 			public static string identifier_set_0 = "[";
 			public static string identifier_set_1 = "]";
-			//标识符 副标题
-			public static string identifier_subtitle_0 = "//";
-			public static string identifier_subtitle_1 = "";
+			//标识符 注解
+			public static string identifier_annotation_0 = "@";
+			public static string identifier_annotation_1 = "";
+			//标记 是否自动创建确缺失的变量
+			public static bool flag__create_missing_variant = false;
 
 			//配置标题
 			public string title_scope { get; private set; }
@@ -695,7 +977,7 @@ namespace AN0FCS_LAUNCHER_DEV
 			int index_end = -1;
 
 			//映射表 配置项集合
-			Dictionary<string,CustomDataConfigSet> dict__config_sets = new Dictionary<string,CustomDataConfigSet>();
+			Dictionary<string,DataConfigSet> dict__config_sets = new Dictionary<string,DataConfigSet>();
 			//映射表 字符串内容
 			Dictionary<string,List<string>> dict__str_contents = new Dictionary<string,List<string>>();
 			//字符串构建器 数据
@@ -707,11 +989,14 @@ namespace AN0FCS_LAUNCHER_DEV
 			//标记 配置中发现错误(存在错误时不会覆盖写入)
 			public bool flag__config_error { get; private set; } = false;
 
-			public CustomDataConfig(string _title_scope,Action<string> setter,Func<string> getter)
+			public DataConfig(string _title_scope)
 			{
-				set=setter;
-				get=getter;
 				title_scope=_title_scope;
+			}
+
+			public void set_string(Func<string> getter,Action<string> setter)
+			{
+				get=getter; set=setter; string_builder__data.Clear();
 			}
 
 			//初始化配置
@@ -719,11 +1004,11 @@ namespace AN0FCS_LAUNCHER_DEV
 			{
 				parse_str_data();//解析自定义数据
 				if(!flag__config_error)//检查CD配置是否存在错误
-					write_to_block_custom_data();//写入自定义数据
+					write_to_string();//写入自定义数据
 			}
 
 			//添加配置集
-			public bool add_config_set(CustomDataConfigSet set)
+			public bool add_config_set(DataConfigSet set)
 			{
 				if(dict__config_sets.ContainsKey(set.title__config_set))
 					return false;
@@ -781,8 +1066,8 @@ namespace AN0FCS_LAUNCHER_DEV
 					{
 						if(flag__construct_from_str)
 						{
-							var set = new CustomDataConfigSet();
-							this.add_config_set();
+							var set = new DataConfigSet();
+							this.add_config_set(set);
 						}
 					}
 					else if(!dict__config_sets[pair.Key].parse_str_data(pair.Value))
@@ -794,8 +1079,8 @@ namespace AN0FCS_LAUNCHER_DEV
 				}
 			}
 
-			//写入方块CD
-			public void write_to_block_custom_data()
+			//写入字符串
+			public void write_to_string()
 			{
 				if(index_begin>=0)
 					string_builder__data.Append(get().Substring(0,index_begin));
@@ -812,7 +1097,7 @@ namespace AN0FCS_LAUNCHER_DEV
 			}
 		}
 		//CD配置集合
-		class CustomDataConfigSet
+		class DataConfigSet
 		{
 			//标题 配置集
 			public string title__config_set { get; private set; }
@@ -829,27 +1114,18 @@ namespace AN0FCS_LAUNCHER_DEV
 			public bool flag__config_error { get; private set; } = false;
 
 			//构造函数
-			public CustomDataConfigSet(string title = "SCRIPT MAIN CONFIGURATION")
+			public DataConfigSet(string title = "SCRIPT MAIN CONFIGURATION")
 			{
-				this.title__config_set=title;
+				title__config_set=title;
 			}
 
-			//添加配置项
-			public bool add_item(string name_item,Type type)
-			{
-				if(dict__config_items.ContainsKey(name_item))
-				{
-					var v = dict__config_items[name_item];
-					if(v.type_v==Variant.VType.Unknown)
-						v.set_type(type);
-				}
-				dict__config_items.Add(name_item,new Variant(name_item,type));
-				return true;
-			}
+			//添加变量
+			public void add_item(Variant v) => dict__config_items[v.name]=v;
 
 			//获取变量 不存在返回null
-			public Variant get_item(string name_item)
-			=> dict__config_items.ContainsKey(name_item) ? dict__config_items[name_item] : null;
+			public Variant get_item(string name_item) => dict__config_items.ContainsKey(name_item) ? dict__config_items[name_item] : null;
+
+			public Variant this[string name] { get { return get_item(name); } }
 
 			//添加注释
 			public bool add_annotation(string str_title)
@@ -870,35 +1146,35 @@ namespace AN0FCS_LAUNCHER_DEV
 				foreach(var line in content)
 				{
 					++count;
-					if(line.Length==0)
-						continue;//跳过空行
-					if(line.StartsWith(CustomDataConfig.identifier_subtitle_0))
-						continue;
+					if(line.Length==0) continue;//跳过空行
+					if(line.StartsWith(DataConfig.identifier_annotation_0)) continue;
 					//以等号拆分
 					string[] pair = line.Split('=');
 					//检查
 					if(pair.Length!=2)
 					{
 						string_builder__error_info.Append($"<error> \"{line}\"(at line {count}) is not a legal config item");
-						flag__config_error=true;
-						continue;//跳过配置错误的行
+						flag__config_error=true; continue;//跳过配置错误的行
 					}
 
 					//去除多余空格
 					string name__config_item = pair[0].Trim();
 					string str_value__config_item = pair[1].Trim();
 
-					Variant reference;
+					Variant variant;
 					//尝试获取
-					if(!dict__config_items.TryGetValue(name__config_item,out reference))
-						continue;//不包含值, 跳过
+					if(!dict__config_items.TryGetValue(name__config_item,out variant))
+						if(DataConfig.flag__create_missing_variant)
+						{
+							//自动创建变量
+							variant=new Variant(name__config_item);
+							dict__config_items[name__config_item]=variant;
+						}
+						else
+							continue;//不包含值, 跳过
 
-					//包含值, 需要解析并更新
-					var value = reference.get();//获取值
-					if(parse_string(str_value__config_item,ref value))
-						//成功解析字符串, 更新数值
-						dict__config_items[name__config_item].set(value);
-					else
+					//解析并更新
+					if(!variant.parse_string(str_value__config_item))
 					{
 						//解析失败
 						string_builder__error_info.Append($"<error> \"{str_value__config_item}\"(at line {count}) is not a legal config value");
@@ -914,85 +1190,20 @@ namespace AN0FCS_LAUNCHER_DEV
 				int count = 0;
 
 				string_builder__data.Clear();
-				string_builder__data.Append($"{CustomDataConfig.identifier_set_0} {title__config_set} {CustomDataConfig.identifier_set_1}\n");
+				string_builder__data.Append($"\n{DataConfig.identifier_set_0} {title__config_set} {DataConfig.identifier_set_1}\n");
 				foreach(var pair in dict__config_items)
 				{
-					if(pair.Value!=null)
-						string_builder__data.Append($"{pair.Key} = {pair.Value.get()}\n");
+					if(pair.Value!=null) string_builder__data.Append(pair.Value);
 					else
 					{
 						if(count!=0) string_builder__data.Append("\n");
-						string_builder__data.Append($"{CustomDataConfig.identifier_subtitle_0} {pair.Key} {CustomDataConfig.identifier_subtitle_1}\n");
+						string_builder__data.Append($"{DataConfig.identifier_annotation_0} {pair.Key} {DataConfig.identifier_annotation_1}\n");
 					}
 					++count;
 				}
-				string_builder__data.Append("\n\n");
+				string_builder__data.Append("\n");
 			}
 
-			//解析字符串值
-			private bool parse_string(string str,ref object v)
-			{
-				if(v is bool)
-				{
-					bool value_parsed;
-					if(bool.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				else if(v is float)
-				{
-					float value_parsed;
-					if(float.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				else if(v is double)
-				{
-					double value_parsed;
-					if(double.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				else if(v is int)
-				{
-					int value_parsed;
-					if(int.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				else if(v is Vector3D)
-				{
-					Vector3D value_parsed;
-					if(Vector3D.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				else if(v is string)
-				{
-					v=str;
-					return true;
-				}
-				else if(v is ScriptMode)
-				{
-					ScriptMode value_parsed;
-					if(ScriptMode.TryParse(str,out value_parsed))
-					{
-						v=value_parsed;
-						return true;
-					}
-				}
-				return false;
-			}
 		}
 
 		#endregion

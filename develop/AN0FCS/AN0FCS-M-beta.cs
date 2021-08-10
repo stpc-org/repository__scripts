@@ -1,5 +1,6 @@
 ﻿/***************************************************************************************************
 * 
+* 
 * ### AN0FCS's Not Only Fire Control System ###
 * ### AN0FCS | "匿名者" 火控系统脚本 ------ ###
 * ### Version 0.0.0 | by SiriusZ-BOTTLE --- ###
@@ -119,8 +120,8 @@ namespace AN0FCS_MAIN_DEV
 		bool flag__enable_elevation_deflection_stabilizer = true;
 		//标记 是否 启用操控平面防跨越
 		bool flag__enable_control_plane_crossing_prevention = true;
-		//标记 是否 启用非数投射
-		bool flag__enable_n_raycast = true;
+		//标记 是否 启用无限投射
+		bool flag__enable_unlimited_raycast = true;
 		//标记 是否 忽略玩家
 		bool flag__ignore_players = false;
 		//标记 是否 忽略火箭弹
@@ -256,15 +257,15 @@ namespace AN0FCS_MAIN_DEV
 				case UpdateType.Terminal:
 				case UpdateType.Trigger:
 				case UpdateType.Script:
-				{
-					run_command(str_arg);
-				}
-				break;
+					{
+						run_command(str_arg);
+					}
+					break;
 				case UpdateType.Update1:
-				{
-					update_script();
-				}
-				break;
+					{
+						update_script();
+					}
+					break;
 			}
 		}
 
@@ -340,35 +341,35 @@ namespace AN0FCS_MAIN_DEV
 				switch(mode_control)
 				{
 					case ControlMode.GlobalControlMode://全局操控模式
-					{
-						if(flag__a_c) break;//自动模式完全屏蔽
-						if(flag__reset_global_orientation_when_user_leave&&mode__control_prev==ControlMode.None)
-							reset_global_orientation();//重置
-						if(flag__enable_scan_under_global_control_mode)
-							if(scan(true)) flag__a_c=true;
-						foreach(var item in list_turrets)//设置目标方向
-							item.set_target_orientation(vector__global_orientation);
-					}
-					break;
-					case ControlMode.SingleControlMode://单一操控模式
-					{
-						if(!flag__a_c)//自动模式部分屏蔽
 						{
-							if(!flag__enable_asynchronously_control)//同步模式
-								foreach(var item in list_turrets)//设置目标方向
-									item.set_target_orientation(vector__global_orientation);
-							if(scan(true)) flag__a_c=true;
+							if(flag__a_c) break;//自动模式完全屏蔽
+							if(flag__reset_global_orientation_when_user_leave&&mode__control_prev==ControlMode.None)
+								reset_global_orientation();//重置
+							if(flag__enable_scan_under_global_control_mode)
+								if(scan(true)) flag__a_c=true;
+							foreach(var item in list_turrets)//设置目标方向
+								item.set_target_orientation(vector__global_orientation);
 						}
-						if(flag__enable_always_control)//开启持续控制
-							turret__under_control.set_target_orientation(vector__global_orientation);
-					}
-					break;
+						break;
+					case ControlMode.SingleControlMode://单一操控模式
+						{
+							if(!flag__a_c)//自动模式部分屏蔽
+							{
+								if(!flag__enable_asynchronously_control)//同步模式
+									foreach(var item in list_turrets)//设置目标方向
+										item.set_target_orientation(vector__global_orientation);
+								if(scan(true)) flag__a_c=true;
+							}
+							if(flag__enable_always_control)//开启持续控制
+								turret__under_control.set_target_orientation(vector__global_orientation);
+						}
+						break;
 					case ControlMode.None://无控制
-					{
-						if(flag__enable_turret_reset&&mode__control_prev!=ControlMode.None&&!flag__a_c)
-							foreach(var item in list_turrets) item.reset();
-					}
-					break;
+						{
+							if(flag__enable_turret_reset&&mode__control_prev!=ControlMode.None&&!flag__a_c)
+								foreach(var item in list_turrets) item.reset();
+						}
+						break;
 				}
 
 				//更新所有炮塔
@@ -410,7 +411,7 @@ namespace AN0FCS_MAIN_DEV
 					if(global.set__self_ids.Contains(i.EntityId)) continue;
 					d=(i.Position-c.WorldMatrix.Translation).Length(); break;
 				}
-				if(flag__enable_n_raycast) t__b_n_scan=1;
+				if(flag__enable_unlimited_raycast) t__b_n_scan=1;
 				else if(v_tgt==null)
 					t__b_n_scan=variation_range>0 ? (flag_global ? (int)(distance__scan_under_global_control_mode/variation_range)
 						: (int)(distance__scan_under_single_control_mode/variation_range)) : int.MaxValue;
@@ -424,32 +425,32 @@ namespace AN0FCS_MAIN_DEV
 				{
 					case MyDetectedEntityType.CharacterHuman://人类角色
 					case MyDetectedEntityType.CharacterOther://非人角色
-					if(flag__ignore_players) return false; break;
+						if(flag__ignore_players) return false; break;
 					case MyDetectedEntityType.Missile://小型网格
-					if(flag__ignore_rockets) return false; break;
+						if(flag__ignore_rockets) return false; break;
 					case MyDetectedEntityType.Meteor://小型网格
-					if(flag__ignore_meteors) return false; break;
+						if(flag__ignore_meteors) return false; break;
 					case MyDetectedEntityType.SmallGrid://小型网格
-					if(flag__ignore_small_grids) return false; break;
+						if(flag__ignore_small_grids) return false; break;
 					case MyDetectedEntityType.LargeGrid://大型网格
-					if(flag__ignore_large_grids) return false; break;
+						if(flag__ignore_large_grids) return false; break;
 					case MyDetectedEntityType.FloatingObject://漂浮物
 					case MyDetectedEntityType.Asteroid://小行星
 					case MyDetectedEntityType.Planet://行星
 					case MyDetectedEntityType.Unknown://未知
 					case MyDetectedEntityType.None://空
-					return false;//被忽略的类型
+						return false;//被忽略的类型
 				}
 				switch(i.Relationship)//关系过滤器
 				{
 					case MyRelationsBetweenPlayerAndBlock.Friends://友方
 					case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
-					if(flag__ignore_the_friendly) return false; break;
+						if(flag__ignore_the_friendly) return false; break;
 					case MyRelationsBetweenPlayerAndBlock.Neutral://中立方
 					case MyRelationsBetweenPlayerAndBlock.NoOwnership://无归属
-					if(flag__ignore_the_neutral) return false; break;
+						if(flag__ignore_the_neutral) return false; break;
 					case MyRelationsBetweenPlayerAndBlock.Enemies://敌对方
-					if(flag__ignore_the_enemy) return false; break;
+						if(flag__ignore_the_enemy) return false; break;
 				}
 				tgt.set(ts,i,position); return true;
 			}
@@ -540,20 +541,20 @@ namespace AN0FCS_MAIN_DEV
 					switch(item.mode_display)
 					{
 						case DisplayUnit.DisplayMode.Page0:
-						item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_0,true); break;
+							item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_0,true); break;
 						case DisplayUnit.DisplayMode.Page1:
-						item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_1,true); break;
+							item.lcd.WriteText(str_b__t); item.lcd.WriteText(str_b__p_1,true); break;
 						case DisplayUnit.DisplayMode.Targets:
-						{
+							{
 
-							break;
-						}
+								break;
+							}
 						case DisplayUnit.DisplayMode.SingleTurret:
-						break;
+							break;
 						case DisplayUnit.DisplayMode.MultipleTurret:
-						break;
+							break;
 						case DisplayUnit.DisplayMode.None:
-						item.lcd.WriteText("<warning> illegal custom data in this LCD\n<by> script ANOFCS"); break;
+							item.lcd.WriteText("<warning> illegal custom data in this LCD\n<by> script ANOFCS"); break;
 					}
 				}
 			}
@@ -619,68 +620,68 @@ namespace AN0FCS_MAIN_DEV
 					{
 						case "graphic":
 						case "page0":
-						unit.mode_display=DisplayUnit.DisplayMode.Page0;
-						break;
+							unit.mode_display=DisplayUnit.DisplayMode.Page0;
+							break;
 						case "page1":
-						unit.mode_display=DisplayUnit.DisplayMode.Page1;
-						break;
+							unit.mode_display=DisplayUnit.DisplayMode.Page1;
+							break;
 						case "targets":
-						unit.mode_display=DisplayUnit.DisplayMode.Targets;
-						break;
+							unit.mode_display=DisplayUnit.DisplayMode.Targets;
+							break;
 						case "turret":
-						{
-							if(array_str.Length==2+offset)
 							{
-								int index = 0;
-								if(!int.TryParse(array_str[1],out index))
+								if(array_str.Length==2+offset)
 								{
-									flag_illegal=true;
-									break;
+									int index = 0;
+									if(!int.TryParse(array_str[1],out index))
+									{
+										flag_illegal=true;
+										break;
+									}
+									//边界检查
+									if(index<0||index>list_turrets.Count)
+									{
+										flag_illegal=true;
+										break;
+									}
+									unit.index_begin=index;
+									unit.mode_display=DisplayUnit.DisplayMode.SingleTurret;
 								}
-								//边界检查
-								if(index<0||index>list_turrets.Count)
+								else if(array_str.Length==3+offset)
 								{
-									flag_illegal=true;
-									break;
+									int index_begin = 0, index_end = 0;
+									if(!int.TryParse(array_str[1],out index_begin))
+									{
+										flag_illegal=true;
+										break;
+									}
+									if(!int.TryParse(array_str[2],out index_end))
+									{
+										flag_illegal=true;
+										break;
+									}
+									//边界检查
+									if(index_begin<0||index_begin>list_turrets.Count)
+									{
+										flag_illegal=true;
+										break;
+									}
+									if(index_end<0||index_end>list_turrets.Count)
+									{
+										flag_illegal=true;
+										break;
+									}
+									unit.index_begin=index_begin;
+									unit.index_end=index_end;
+									unit.mode_display=DisplayUnit.DisplayMode.MultipleTurret;
 								}
-								unit.index_begin=index;
-								unit.mode_display=DisplayUnit.DisplayMode.SingleTurret;
+								else
+									flag_illegal=true;
 							}
-							else if(array_str.Length==3+offset)
-							{
-								int index_begin = 0, index_end = 0;
-								if(!int.TryParse(array_str[1],out index_begin))
-								{
-									flag_illegal=true;
-									break;
-								}
-								if(!int.TryParse(array_str[2],out index_end))
-								{
-									flag_illegal=true;
-									break;
-								}
-								//边界检查
-								if(index_begin<0||index_begin>list_turrets.Count)
-								{
-									flag_illegal=true;
-									break;
-								}
-								if(index_end<0||index_end>list_turrets.Count)
-								{
-									flag_illegal=true;
-									break;
-								}
-								unit.index_begin=index_begin;
-								unit.index_end=index_end;
-								unit.mode_display=DisplayUnit.DisplayMode.MultipleTurret;
-							}
-							else
-								flag_illegal=true;
-						}
-						break;
+							break;
 						default:
-						unit.mode_display=DisplayUnit.DisplayMode.None;
-						break;
+							unit.mode_display=DisplayUnit.DisplayMode.None;
+							break;
 					}
 				}
 
@@ -751,7 +752,7 @@ namespace AN0FCS_MAIN_DEV
 			config_set__script.add_config_item(nameof(flag__enable_azimuth_deflection_stabilizer),() => flag__enable_azimuth_deflection_stabilizer,x => { flag__enable_azimuth_deflection_stabilizer=(bool)x; });
 			config_set__script.add_config_item(nameof(flag__enable_elevation_deflection_stabilizer),() => flag__enable_elevation_deflection_stabilizer,x => { flag__enable_elevation_deflection_stabilizer=(bool)x; });
 			config_set__script.add_config_item(nameof(flag__enable_control_plane_crossing_prevention),() => flag__enable_control_plane_crossing_prevention,x => { flag__enable_control_plane_crossing_prevention=(bool)x; });
-			config_set__script.add_config_item(nameof(flag__enable_n_raycast),() => flag__enable_n_raycast,x => { flag__enable_n_raycast=(bool)x; });
+			config_set__script.add_config_item(nameof(flag__enable_unlimited_raycast),() => flag__enable_unlimited_raycast,x => { flag__enable_unlimited_raycast=(bool)x; });
 			config_set__script.add_config_item(nameof(flag__ignore_players),() => flag__ignore_players,x => { flag__ignore_players=(bool)x; });
 			config_set__script.add_config_item(nameof(flag__ignore_rockets),() => flag__ignore_rockets,x => { flag__ignore_rockets=(bool)x; });
 			config_set__script.add_config_item(nameof(flag__ignore_meteors),() => flag__ignore_meteors,x => { flag__ignore_meteors=(bool)x; });
@@ -797,7 +798,7 @@ namespace AN0FCS_MAIN_DEV
 		{
 			GlobalControlMode,//全局操控模式
 			SingleControlMode,//单一操控模式
-			AutomaticControlMode,//全自动控制模式
+			AutomaticControlMode,//全自动控制模式 
 			None,//不操控
 		}
 
@@ -1694,7 +1695,7 @@ namespace AN0FCS_MAIN_DEV
 				group__script_core.GetBlocksOfType(list_pistons);
 				group__script_core.GetBlocksOfType(list_timers);
 				group__script_core.GetBlocksOfType(list_displayers);
-				foreach(var i in list_cameras) { i.EnableRaycast=true; if(p.flag__enable_n_raycast) i.Raycast(Double.NaN); }
+				foreach(var i in list_cameras) { i.EnableRaycast=true; if(p.flag__enable_unlimited_raycast) i.Raycast(Double.NaN); }
 				foreach(var i in list_blocks) if(i.CustomData.StartsWith(p.tag_indicator)) list_indicators.Add(i);
 
 				//查找其它方块
@@ -2070,15 +2071,17 @@ namespace AN0FCS_MAIN_DEV
 			//计算输出
 			public double cal_output(double error)
 			{
+				// 计算微分
 				double derivative = (PIDCore.flag__enable_derivative_term) ? (error-error_last) : 0.0;
-				derivative=derivative*derivative;//微分取平方
+				// 积分
 				if(PIDCore.flag__enable_integral_term)
 					if(flag__enable_integral_separation ? (error<threshold__integral_separation&&error>-threshold__integral_separation) : true)
 						if(flag__enable_integral_anti_windup ? ((output_last>limit_upper__output&&error<0)||(output_last<limit_lower__output&&error>0)) : true)
 							integral+=error;
 				++count_invoke; error_last=error;
-				output_last=(vector_coeff.X*error+vector_coeff.Y*integral+vector_coeff.Z*derivative);
-				//if(output_last>limit_upper__output) return limit_upper__output; //else if(output_last<limit_lower__output) return limit_lower__output; //return output_last;
+				// 计算本轮输出
+				output_last=(vector_coeff.X*error+vector_coeff.Y*integral+vector_coeff.Z*derivative*derivative);
+				// 阈值限制
 				return output_last>limit_upper__output ? limit_upper__output : (output_last<limit_lower__output ? limit_lower__output : output_last);
 			}
 
@@ -2090,7 +2093,8 @@ namespace AN0FCS_MAIN_DEV
 			//逼近新的值, 变化越大惩罚越大, inc为倍数增量的比率0.5*[0,1]
 			public static double cal_smooth_avg(double l,double c,double? i = null)
 			{
-				double inc = 0.5*((inc=Math.Abs((i==null ? c-l : i.Value)/l))>1 ? 1 : inc); return inc*l+(1-inc)*c;
+				double inc = 0.5*((inc=Math.Abs((i==null ? c-l : i.Value)/l))>1 ? 1 : inc);
+				return inc*l+(1-inc)*c;
 			}
 
 			//全局(朝向)转 yaw pitch
