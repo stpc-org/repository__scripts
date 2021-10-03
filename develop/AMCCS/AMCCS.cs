@@ -1872,6 +1872,9 @@ namespace AMCCS_DEV
 				//解锁
 				if(count_status==program.delay_attach)
 					unlock_elevation_joints();
+				//释放器预分离
+				//if(count_status==delay__detach_releasers)
+				//	releasers_detach();
 				//附着
 				if((!flag__all_releasers_attached&&count_status>program.delay_attach)||count_status==program.delay_attach)
 					attach();
@@ -1889,8 +1892,9 @@ namespace AMCCS_DEV
 				{
 					if(count_status==program.delay__try_disconnect_shell&&command_cannon==CannonCommand.Fire)
 						try_disconnect_shell_0();
-					if(count_status==delay__detach_speed_limit_breakers)
-						speed_limit_breakers_detach();
+					//破速限元件预分离
+					//if(count_status==delay__detach_speed_limit_breakers&&command_cannon==CannonCommand.Fire)
+					//	speed_limit_breakers_detach();
 					if((!piston__speed_limit_breaker.IsAttached)
 						&&(count_status>=program.delay__try_disconnect_shell+program.time__disconnecting_shell))
 						try_disconnect_shell_1();
@@ -1919,6 +1923,9 @@ namespace AMCCS_DEV
 					if(command_cannon==CannonCommand.Fire&&count_status==program.delay__minor_pistons_extend)
 						//伸展次要活塞
 						minor_pistons_extend();
+					//固定器预分离
+					//if(count_status==delay__detach_fixators)
+					//	fixators_detach();
 					if(!flag__all_fixators_enabled&&count_status>=program.delay__enable_fixators)
 						//启用固定器
 						enable_fixators();
@@ -2091,6 +2098,13 @@ namespace AMCCS_DEV
 						item.Extend();
 			}
 
+			//释放器预分离
+			private void releasers_detach()
+			{
+				foreach(var item in list_releasers)
+					item.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+			}
+
 			//附着 同时会解锁垂直关节
 			private void attach()
 			{
@@ -2098,12 +2112,13 @@ namespace AMCCS_DEV
 				foreach(var item in list_releasers)
 					if(!item.IsAttached)//检查是否已经附着
 					{
-						//item.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+						item.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
 						item.Attach();
 					}
 				flag__all_releasers_attached=check_releasers_status();//更新一次
 			}
 
+			//解锁垂直关节
 			private void unlock_elevation_joints()
 			{
 				if(command_cannon==CannonCommand.Fire)
@@ -2138,6 +2153,7 @@ namespace AMCCS_DEV
 
 			private void try_disconnect_shell_0() => piston__speed_limit_breaker.Detach();
 
+			//破速限元件预分离
 			private void speed_limit_breakers_detach()
 			{
 				piston__speed_limit_breaker.Detach();
@@ -2145,7 +2161,7 @@ namespace AMCCS_DEV
 
 			private void try_disconnect_shell_1()
 			{
-				//piston__speed_limit_breaker.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+				piston__speed_limit_breaker.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
 				piston__speed_limit_breaker.Attach();
 			}
 
@@ -2187,6 +2203,14 @@ namespace AMCCS_DEV
 				}
 			}
 
+			//固定器预分离
+			private void fixators_detach()
+			{
+				if(mode_fix==FixMode.MechanicalConnectionBlock)
+					foreach(var item in list_fixators)
+						(item as IMyMechanicalConnectionBlock).Detach();
+			}
+
 			//启用固定器
 			private void enable_fixators()
 			{
@@ -2202,7 +2226,7 @@ namespace AMCCS_DEV
 						{
 							foreach(var item in list_fixators)
 							{
-								//(item as IMyMechanicalConnectionBlock).Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+								(item as IMyMechanicalConnectionBlock).Detach();//由于傻逼K社的智障BUG, 必须加上这一行
 								(item as IMyMechanicalConnectionBlock).Attach();//附着
 							}
 						}
@@ -2214,12 +2238,6 @@ namespace AMCCS_DEV
 			//次要活塞收缩(收缩按同步的次要活塞收缩定义)
 			private void minor_pistons_retract()
 			{
-				foreach(var item in list_releasers)
-					if(!item.IsAttached)
-					{
-						//item.Detach();//由于傻逼K社的傻逼BUG, 必须加上这一行
-						item.Attach();
-					}
 				if(program.flag__synchronized_minor_pistons)
 				{
 					if(piston__minor_status_indicator.Status!=PistonStatus.Retracted&&piston__minor_status_indicator.Status!=PistonStatus.Retracting)
