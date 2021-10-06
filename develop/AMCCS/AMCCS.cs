@@ -102,8 +102,6 @@ namespace AMCCS_DEV
 		bool flag__auto_start_warhead_countdown = true;
 		//标记(全局) 是否 自动切换焊接器开关状态
 		bool flag__auto_toggle_welders_onoff = true;
-		//标记(全局) 是否 自动切换垂直关节元件锁定状态
-		bool flag__auto_toggle_vertical_joints_lock = true;
 		//标记(全局) 是否 自动触发用户接口定时器0
 		bool flag__auto_trigger_custom_interface_timer_0 = true;
 		//标记(全局) 是否 自动触发用户接口定时器1
@@ -178,6 +176,8 @@ namespace AMCCS_DEV
 		int time__disconnecting_shell = 10;
 		//计数 分离件网格总方块数 (默认7, 炮弹4个方块, 合并块+活塞头+投影仪)
 		int count__total_blocks_in_detach_grid = 7;
+		//计数 最大延迟次数 (炮弹完整性检查)
+		int times__max_delay = 5;
 
 		//以上是脚本配置字段
 
@@ -1011,7 +1011,6 @@ namespace AMCCS_DEV
 			config_set__script.add_config_item(nameof(flag__auto_activate_shell), () => flag__auto_activate_shell, x => { flag__auto_activate_shell = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__auto_start_warhead_countdown), () => flag__auto_start_warhead_countdown, x => { flag__auto_start_warhead_countdown = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__auto_toggle_welders_onoff), () => flag__auto_toggle_welders_onoff, x => { flag__auto_toggle_welders_onoff = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_toggle_vertical_joints_lock), () => flag__auto_toggle_vertical_joints_lock, x => { flag__auto_toggle_vertical_joints_lock = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_0), () => flag__auto_trigger_custom_interface_timer_0, x => { flag__auto_trigger_custom_interface_timer_0 = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_1), () => flag__auto_trigger_custom_interface_timer_1, x => { flag__auto_trigger_custom_interface_timer_1 = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__auto_check), () => flag__auto_check, x => { flag__auto_check = (bool)x; });
@@ -1019,6 +1018,7 @@ namespace AMCCS_DEV
 			config_set__script.add_config_item(nameof(flag__reload_once_after_script_initialization), () => flag__reload_once_after_script_initialization, x => { flag__reload_once_after_script_initialization = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__enable_two_stage_mode), () => flag__enable_two_stage_mode, x => { flag__enable_two_stage_mode = (bool)x; });
 			config_set__script.add_config_item(nameof(flag__enable_shell_disconnection), () => flag__enable_shell_disconnection, x => { flag__enable_shell_disconnection = (bool)x; });
+			config_set__script.add_config_item(nameof(flag__enable_shell_integrity_check), () => flag__enable_shell_integrity_check, x => { flag__enable_shell_integrity_check = (bool)x; });
 
 			config_set__script.add_line("EXECUTION CYCLE OF SOME FUNCTIONS");
 			config_set__script.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
@@ -1047,6 +1047,7 @@ namespace AMCCS_DEV
 			config_set__script.add_config_item(nameof(number__warhead_countdown_seconds), () => number__warhead_countdown_seconds, x => { number__warhead_countdown_seconds = (double)x; });
 			config_set__script.add_config_item(nameof(time__disconnecting_shell), () => time__disconnecting_shell, x => { time__disconnecting_shell = (int)x; });
 			config_set__script.add_config_item(nameof(count__total_blocks_in_detach_grid), () => count__total_blocks_in_detach_grid, x => { count__total_blocks_in_detach_grid = (int)x; });
+			config_set__script.add_config_item(nameof(times__max_delay), () => times__max_delay, x => { times__max_delay = (int)x; });
 
 			//config_set__t.add_line("ABOUT CHARGE-TWICE CANNON");
 
@@ -1309,8 +1310,6 @@ namespace AMCCS_DEV
 			bool flag__check_shell_detach_status = true;
 			//标记 是否 自动切换焊接器开关状态
 			bool flag__auto_toggle_welders_onoff = true;
-			//标记 是否 自动切换垂直关节元件锁定状态
-			bool flag__auto_toggle_vertical_joints_lock = true;
 			//标记 是否 自动触发用户接口定时器0
 			bool flag__auto_trigger_custom_interface_timer_0 = true;
 			//标记 是否 自动触发用户接口定时器1
@@ -1319,6 +1318,9 @@ namespace AMCCS_DEV
 			bool flag__enable_two_stage_mode = false;
 			//标记 是否 启用主动断开炮弹连接功能
 			bool flag__enable_shell_disconnection = false;
+			//标记 是否 启用炮弹完整性检查
+			bool flag__enable_shell_integrity_check = false;
+
 			//标记 是否 已经暂停过
 			bool flag_paused = false;
 			//标记 是否 全部释放器附着
@@ -1694,11 +1696,6 @@ namespace AMCCS_DEV
 					program.flag__auto_toggle_welders_onoff
 					&& group_welders != null
 					&& list_welders.Count != 0;
-				//自动锁定垂直关节
-				flag__auto_toggle_vertical_joints_lock =
-					program.flag__auto_toggle_vertical_joints_lock
-					&& group__vertical_joints != null
-					&& list__vertical_joints.Count != 0;
 				//用户接口定时器0
 				flag__auto_trigger_custom_interface_timer_0 =
 					program.flag__auto_trigger_custom_interface_timer_0
@@ -1707,6 +1704,10 @@ namespace AMCCS_DEV
 				flag__auto_trigger_custom_interface_timer_1 =
 					program.flag__auto_trigger_custom_interface_timer_1
 					&& timer__custom_interface_1 != null;
+				//炮弹完整性检查 (全局开启, 并且开启炮弹断连功能)
+				flag__enable_shell_integrity_check =
+					program.flag__enable_shell_integrity_check
+					&& flag__enable_shell_disconnection;
 			}
 
 			public void set_command(CannonCommand cmd)
@@ -1866,9 +1867,9 @@ namespace AMCCS_DEV
 					if (command_cannon == CannonCommand.Fire)
 					{
 						//if (!check_projector_status())
-						if (!check_detach_grid_status())
+						if (program.flag__enable_shell_integrity_check && !check_detach_grid_status())
 						{
-							if (count_delay >= 5)//最多等待次数
+							if (count_delay >= program.times__max_delay)//最多等待次数
 							{
 								command_cannon = CannonCommand.Reload;//尝试重载
 								count_status = 1;
@@ -1909,9 +1910,6 @@ namespace AMCCS_DEV
 				//伸展
 				if (command_cannon == CannonCommand.Fire && count_status == program.delay__pistons_extend)
 					pistons_extend();
-				//解锁
-				if (count_status == program.delay_attach)
-					unlock_elevation_joints();
 				//附着
 				if ((!flag__all_releasers_attached && count_status > program.delay_attach) || count_status == program.delay_attach)
 					attach();
@@ -1976,7 +1974,7 @@ namespace AMCCS_DEV
 				times_delay += time;
 				status_cannon = CannonStatus.Pausing;//设置暂停状态
 				flag_paused = true;// 设置是否暂停过的标记
-				program.times__before_next_auto_fire += time;
+								   //program.times__before_next_auto_fire += time;
 			}
 
 			//释放 同时会开启锁定垂直关节
@@ -1985,11 +1983,6 @@ namespace AMCCS_DEV
 				//重新获取弹头
 				if (program.flag__auto_activate_shell)
 					update_warheads_list();
-
-				//垂直转子锁定
-				if (flag__auto_toggle_vertical_joints_lock)
-					foreach (var item in list__vertical_joints)
-						item.RotorLock = true;
 
 				//释放
 				foreach (var item in list_releasers)
@@ -2151,15 +2144,6 @@ namespace AMCCS_DEV
 						item.Attach();
 					}
 				flag__all_releasers_attached = check_releasers_status();//更新一次
-			}
-
-			//解锁垂直关节
-			private void unlock_elevation_joints()
-			{
-				if (command_cannon == CannonCommand.Fire)
-					if (flag__auto_toggle_vertical_joints_lock)//垂直转子解锁
-						foreach (var item in list__vertical_joints)
-							item.RotorLock = false;
 			}
 
 			//活塞收缩
@@ -2515,13 +2499,14 @@ namespace AMCCS_DEV
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
 					+ "\n<count_pistons> " + this.list_pistons.Count
 					+ "\n<delay_ROR> " + this.delay__release_on_reload
-					+ "\n<progress_PJT> " + (projector__cannon_shell == null ? "null" : (projector__cannon_shell.TotalBlocks - projector__cannon_shell.RemainingBlocks + "/" + projector__cannon_shell.TotalBlocks))
+					+ "\n<progress_PJT> " + (projector__cannon_shell == null ? "null" :
+					(projector__cannon_shell.TotalBlocks - projector__cannon_shell.RemainingBlocks + "/" + projector__cannon_shell.TotalBlocks))
 					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
-					+ "\n<flag_ATVJL> " + this.flag__auto_toggle_vertical_joints_lock
 					+ "\n<flag_ATCIT0> " + this.flag__auto_trigger_custom_interface_timer_0
 					+ "\n<flag_ATCIT1> " + this.flag__auto_trigger_custom_interface_timer_1
 					+ "\n<flag_ESD> " + this.flag__enable_shell_disconnection
-					+ "\n<flag_ECTM> " + this.flag__enable_two_stage_mode
+					+ "\n<flag_ESIC> " + this.flag__enable_shell_integrity_check
+					+ "\n<flag_ETSM> " + this.flag__enable_two_stage_mode
 					+ "\n\n <init_info> \n" + string_builder__init_info.ToString();
 			}
 
@@ -2538,7 +2523,6 @@ namespace AMCCS_DEV
 					+ "\n<count_pistons> " + this.list_pistons.Count
 					+ "\n<flag_AAS> " + this.flag__auto_activate_shell
 					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
-					+ "\n<flag_ATVJL> " + this.flag__auto_toggle_vertical_joints_lock
 					+ "\n<flag_ATCIT0> " + this.flag__auto_trigger_custom_interface_timer_0
 					+ "\n<flag_ATCIT1> " + this.flag__auto_trigger_custom_interface_timer_1
 					+ "\n<flag_ESD> " + this.flag__enable_shell_disconnection
