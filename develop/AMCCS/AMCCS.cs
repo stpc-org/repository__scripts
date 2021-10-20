@@ -1345,6 +1345,8 @@ namespace AMCCS_DEV
 
 			//计数 状态计数
 			public int count_status { get; private set; } = 1;
+			//计数 删一次射击时的弹头数
+			int count__warheads_on_last_fire = 0;
 			//计数 因等待焊接器而延迟的次数
 			int count_delay = 0;
 
@@ -1981,8 +1983,8 @@ namespace AMCCS_DEV
 			private void release()
 			{
 				//重新获取弹头
-				if (program.flag__auto_activate_shell)
-					update_warheads_list();
+				//if (program.flag__auto_activate_shell)
+				//	update_warheads_list();
 
 				//释放
 				foreach (var item in list_releasers)
@@ -2071,6 +2073,9 @@ namespace AMCCS_DEV
 			//尝试激活炮弹
 			private void try_activate_shell()
 			{
+				// 激活炮弹前获取弹头
+				if (program.flag__auto_activate_shell)
+					update_warheads_list();
 				//激活弹头
 				if (flag__auto_activate_shell)
 				{
@@ -2079,7 +2084,7 @@ namespace AMCCS_DEV
 						//获取网格
 						IMyCubeGrid grid_locator = locator__cannon_detach_part_grid.CubeGrid;
 						//炮弹所在网格
-						IMyCubeGrid grid_shell = null;
+						IMyCubeGrid grid_shell;
 						if (list_warheads.Count > 0)
 							grid_shell = list_warheads[0].CubeGrid;
 						else
@@ -2299,7 +2304,7 @@ namespace AMCCS_DEV
 				group_warheads = program.GridTerminalSystem.GetBlockGroupWithName(name_group);
 				//检查
 				if (group_warheads != null)
-					//添加到列表
+					//添加到列表 (如果不开启主动断开炮弹连接的功能, 这一步可能引入旧的弹头对象)
 					group_warheads.GetBlocksOfType<IMyWarhead>(list_warheads);
 
 				//将上一发炮弹的弹头从列表中剔除
@@ -2311,7 +2316,8 @@ namespace AMCCS_DEV
 					grid__previous_shell = list_warheads[0].CubeGrid;
 				else
 					grid__previous_shell = null;
-
+				// 记录上一次(本次)射击时获取的弹头数
+				count__warheads_on_last_fire = list_warheads.Count;
 				this.flag__auto_activate_shell = (group_warheads != null) && (list_warheads.Count != 0);
 			}
 
@@ -2495,18 +2501,21 @@ namespace AMCCS_DEV
 					+ "\n<mode_detach> " + this.mode_detach
 					+ "\n<status> " + status_cannon.ToString()
 					+ "\n<command> " + command_cannon.ToString()
-					+ "\n<rotor_attached> " + this.check_releasers_status()
+					+ "\n<flag__rotor_attached> " + this.check_releasers_status()
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
 					+ "\n<count_pistons> " + this.list_pistons.Count
+					+ "\n<count__warheads_on_last_fire> " + this.count__warheads_on_last_fire
 					+ "\n<delay_ROR> " + this.delay__release_on_reload
 					+ "\n<progress_PJT> " + (projector__cannon_shell == null ? "null" :
 					(projector__cannon_shell.TotalBlocks - projector__cannon_shell.RemainingBlocks + "/" + projector__cannon_shell.TotalBlocks))
+					+ "\n<flag_AAS> " + this.flag__auto_activate_shell
+					+ "\n<flag_CSDS> " + this.flag__check_shell_detach_status
 					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
 					+ "\n<flag_ATCIT0> " + this.flag__auto_trigger_custom_interface_timer_0
 					+ "\n<flag_ATCIT1> " + this.flag__auto_trigger_custom_interface_timer_1
+					+ "\n<flag_ETSM> " + this.flag__enable_two_stage_mode
 					+ "\n<flag_ESD> " + this.flag__enable_shell_disconnection
 					+ "\n<flag_ESIC> " + this.flag__enable_shell_integrity_check
-					+ "\n<flag_ETSM> " + this.flag__enable_two_stage_mode
 					+ "\n\n <init_info> \n" + string_builder__init_info.ToString();
 			}
 
@@ -2522,11 +2531,13 @@ namespace AMCCS_DEV
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
 					+ "\n<count_pistons> " + this.list_pistons.Count
 					+ "\n<flag_AAS> " + this.flag__auto_activate_shell
+					+ "\n<flag_CSDS> " + this.flag__check_shell_detach_status
 					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
 					+ "\n<flag_ATCIT0> " + this.flag__auto_trigger_custom_interface_timer_0
 					+ "\n<flag_ATCIT1> " + this.flag__auto_trigger_custom_interface_timer_1
+					+ "\n<flag_ETSM> " + this.flag__enable_two_stage_mode
 					+ "\n<flag_ESD> " + this.flag__enable_shell_disconnection
-					+ "\n<flag_ECTM> " + this.flag__enable_two_stage_mode;
+					+ "\n<flag_ESIC> " + this.flag__enable_shell_integrity_check;
 			}
 
 			//获取火炮简易信息
