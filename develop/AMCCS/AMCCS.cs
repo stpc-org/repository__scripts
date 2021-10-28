@@ -1690,6 +1690,8 @@ namespace AMCCS_DEV
 
 				//检查火炮内部功能开关
 
+				// 自动激活炮弹
+				flag__auto_activate_shell = program.flag__auto_activate_shell;
 				//自动检查炮弹分离状态
 				flag__check_shell_detach_status =
 					locator__cannon_detach_part_grid != null;
