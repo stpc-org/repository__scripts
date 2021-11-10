@@ -2806,7 +2806,7 @@ namespace AMCCS_DEV
 			{
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
-					"--------------------<group>--------------------"
+					"<group> ------------------------------ No." + this.index_group
 					+ "\n<group> No." + this.index_group
 					+ "\n<mode_fire> " + this.mode_fire
 					+ "\n----------<cannons>----------\n");
