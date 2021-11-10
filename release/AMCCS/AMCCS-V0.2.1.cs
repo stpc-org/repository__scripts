@@ -12,7 +12,7 @@
 ***************************************************************************************************/
 
 //使用脚本时确保下面一行代码被注释
-#define DEVELOP
+//#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
@@ -26,7 +26,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
-namespace AMCCS_DEV
+namespace AMCCS_RELEASE
 {
 	class Program : MyGridProgram
 	{
