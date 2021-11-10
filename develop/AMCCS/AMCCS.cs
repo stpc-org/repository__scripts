@@ -2498,11 +2498,11 @@ namespace AMCCS_DEV
 			//获取火炮显示信息
 			public string get_cannon_info()
 			{
-				return "<cannon> -------------------- No." + this.index_cannon
-					+ "\n<count_status> " + this.count_status + get_string_progress_bar()
-					+ "\n<mode_detach> " + this.mode_detach
+				return "<cannon> ------------------------------ No." + this.index_cannon
 					+ "\n<status> " + status_cannon.ToString()
+					+ $"\n<count_status> {this.count_status}/{program.delay__done_loading} {get_string_progress_bar()}"
 					+ "\n<command> " + command_cannon.ToString()
+					+ "\n<mode_detach> " + this.mode_detach
 					+ "\n<flag__rotor_attached> " + this.check_releasers_status()
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
 					+ "\n<count_pistons> " + this.list_pistons.Count
@@ -2524,10 +2524,9 @@ namespace AMCCS_DEV
 			//获取火炮LCD显示信息
 			public string get_cannon_LCD_info()
 			{
-				return "<cannon> -------------------- No." + this.index_cannon
-					+ "\n<cannon> No." + this.index_cannon
-					+ "\n<count_status> " + this.count_status + get_string_progress_bar()
+				return "<cannon> ------------------------------ No." + this.index_cannon
 					+ "\n<status> " + status_cannon.ToString()
+					+ $"\n<count_status> {this.count_status}/{program.delay__done_loading} {get_string_progress_bar()}"
 					+ "\n<command> " + command_cannon.ToString()
 					+ "\n<rotor_attached> " + this.check_releasers_status()
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
@@ -2809,7 +2808,7 @@ namespace AMCCS_DEV
 					"<group> ------------------------------ No." + this.index_group
 					+ "\n<group> No." + this.index_group
 					+ "\n<mode_fire> " + this.mode_fire
-					+ "\n----------<cannons>----------\n");
+					+ "\n<cannons> --------------------\n");
 				foreach (var item in list_cannons)
 					sb.Append(item.get_cannon_simple_info() + "\n");
 				return sb.ToString();
