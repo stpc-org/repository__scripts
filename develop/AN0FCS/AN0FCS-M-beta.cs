@@ -40,7 +40,10 @@
  * 开发计划:
  * [0] 针对目标加速度变化过大的规避进行的模式识别和预判策略调整(目标机动性评估)
  * [1] 目标局部预判功能(根据目标的朝向)
- * 
+ * [2] 若 AN0-FCS 和 AN0-R 同时存在则由 AN0-FCS 驱动 AN0-R (AN0-FCS 本地广播扫描目标坐标的消息, 由 AN0-R 广播扫描到的数据)
+ *     AN0-R 脚本启动时选择是否开启与 AN0-FCS 联动, 如果不开启联动则 AN0-R 脚本不接受 AN0-FCS 发出的扫描指令
+ *     可以配置是否让 AN0-FCS 发出扫描指令. 若仅存在 AN0-R 脚本, 则使用 AN0-R 脚本的扫描机制. 
+ *     (进入被注册的摄像头后使用摄像头直射扫描, 与是否与 AN0-FCS 联动无关, 但可通过配置开关)
  */
 
 #define DEVELOP
@@ -68,14 +71,25 @@ namespace AN0FCS_MAIN_DEV
 		#region 脚本字段
 
 		// 字符串 脚本版本号
-		readonly string str__script_version = "AN0FCS-MAIN V0.0.0-BETA ";
+		readonly string str__script_version = "AN0-FCS V0.0.0-BETA ";
 
 		// 数组 运行时字符显示
-		// string[] array__runtime_chars = new string[] { "","","R","RU","RUN","RUNN","RUNNI","RUNNIN","RUNNING","RUNNING",};
-		string[] array__runtime_chars = new string[] { "", "", "B", "BE", "BET", "BETA", "BETA", };
+		string[] array__runtime_chars = new string[]
+		{
+			"",
+			"",
+			"R",
+			"RU",
+			"RUN",
+			"RUNN",
+			"RUNNI",
+			"RUNNIN",
+			"RUNNING",
+			"RUNNING",
+		};
 
 		// 标签 脚本核心编组
-		string tag__script_core_group = "ANOFCS";
+		string tag__script_core_group = "ANO-FCS";
 		// 标签 高低转子(俯仰)
 		string tag__elevation_stators = "_V";
 		// 标签 方向转子(偏航)
@@ -91,27 +105,25 @@ namespace AN0FCS_MAIN_DEV
 		// 标签 停火
 		string tag_hold = "hold";
 
-		// 标记 是否 自动检测(自动检查炮塔完整性)
+		// 标记 是否 自动检测 (自动检查炮塔完整性)
 		bool flag__enable_auto_check = true;
 		// 标记 是否 开启自动射击
 		bool flag__enable_auto_fire = true;
-		// 标记 是否 开启局部锁定(打击)
-		bool flag__enable_local_locking = false;
+		
 		// 标记 是否 在全局操控模式下扫描
 		bool flag__enable_scan_under_global_control_mode = true;
-		// 标记 是否 开启全局操控模式(此项针对飞船考虑)
+		// 标记 是否 开启全局操控模式 (此项针对飞船考虑)
 		bool flag__enable_global_control_mode = true;
 		// 标记 是否 锁定自动炮塔的目标
 		bool flag__enable_auto_turret_target_locking = true;
-		// 标记 是否 当离线(无用户操控)时锁定目标
-		bool flag__enable_lock_target_off_line = true;
+		
 		// 标记 是否 启用炮塔复位
 		bool flag__enable_turret_reset = true;
-		// 标记 是否 当用户离开时重置全局朝向(全局朝向固定为进入时的位置)
+		// 标记 是否 当用户离开时重置全局朝向 (全局朝向固定为进入时的位置)
 		bool flag__reset_global_orientation_when_user_leave = false;
-		// 标记 是否 默认在单一操控模式下进行异步操控(一般设为true)
+		// 标记 是否 默认在单一操控模式下进行异步操控 (一般设为true)
 		bool flag__enable_asynchronously_control = true;
-		// 标记 是否 启用持续控制(单一控制模式)
+		// 标记 是否 启用持续控制 (单一控制模式)
 		bool flag__enable_always_control = true;
 		// 标记 是否 启用水平偏转稳定器
 		bool flag__enable_azimuth_deflection_stabilizer = true;
@@ -119,8 +131,7 @@ namespace AN0FCS_MAIN_DEV
 		bool flag__enable_elevation_deflection_stabilizer = true;
 		// 标记 是否 启用操控平面防跨越
 		bool flag__enable_control_plane_crossing_prevention = true;
-		// 标记 是否 启用无限投射
-		bool flag__enable_unlimited_raycast = true;
+		
 		// 标记 是否 忽略玩家
 		bool flag__ignore_players = false;
 		// 标记 是否 忽略火箭弹
@@ -444,9 +455,10 @@ namespace AN0FCS_MAIN_DEV
 			{
 				foreach (var c in global.list_cameras)
 				{
-					var _tgt = vector_coordinate.Value - c.WorldMatrix.Translation;
+					var _tgt = vector_coordinate - c.WorldMatrix.Translation;
+
 					TK.global_to_yaw_pitch(out yaw, out pitch, c.WorldMatrix, _tgt);// 全局
-					
+
 					if (Math.Abs(yaw) > c.RaycastConeLimit || Math.Abs(pitch) > c.RaycastConeLimit)
 						continue;// 目标处于当前摄像头盲区, 跳过
 

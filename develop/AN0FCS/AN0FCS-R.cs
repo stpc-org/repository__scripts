@@ -10,7 +10,7 @@
 ***************************************************************************************************/
 
 
-#define DEVELOP
+//#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
@@ -24,7 +24,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame.Utilities;
 using VRageMath;
 
-namespace AN0FCS_RADAR_DEV
+namespace AN0_RADAR_DEV
 {
 	class Program : MyGridProgram
 	{
@@ -33,9 +33,13 @@ namespace AN0FCS_RADAR_DEV
 		#region 脚本字段
 
 		//字符串 脚本版本号
-		readonly string str__script_version = "AN0FCS-RADAR V0.0.0-BETA ";
-		//字符串 内部共享广播信道(同步不同脚本实例的对象, 共享)
-		readonly string str__inner_cast_channel = "AN0-R-INNER-SHARED-CHANNEL";
+		readonly string str__script_version = "AN0-RADAR V0.0.0-BETA ";
+
+		//字符串 内部共享广播信道 (同步不同脚本实例的对象, 共享)
+		readonly string string__inner_cast_channel = "AN0-R-SCRIPT-COMMUNICATION-CHANNEL-#0";
+		//字符串 指示器信道通信后缀
+		readonly string suffix_string__scanning_coordinate = "-SCANNING-COORDINATE";
+
 		//数组 运行时字符显示
 		readonly string[] array__runtime_chars = new string[]
 		{
@@ -51,16 +55,23 @@ namespace AN0FCS_RADAR_DEV
 			"RUNNING",
 		};
 
-		//标签 脚本核心编组
-		string tag__script_core_group = "AN0-CORE";
+		//名称 脚本核心编组
+		string name__script_core_group = "AN0-RADAR";
 
 		//标记 是否 锁定自动炮塔的目标
 		bool flag__enable_auto_turret_target_locking = true;
-		//标记 是否 当离线(无用户操控)时锁定目标
-		bool flag__enable_lock_target_off_line = true;
+		//标记 是否 当离线 (无用户操控) 时广播目标
+		bool flag__enable_cast_targets_off_line = true;
 
-		//标记 是否 启用单次投射
-		bool flag__enable_one_raycast = true;
+		// 标记 是否 开启局部锁定 (打击) (锁定时仍然使用目标中心位置锁定, 广播时追踪扫描时的位置)
+		bool flag__enable_local_locking = false;
+		//标记 是否 启用无限投射
+		bool flag__enable_unlimited_raycast = true;
+		// 标记 是否 接收扫描坐标
+		bool flag__receiving_scanning_coordinate = true;
+
+		// 全局目标过滤器
+
 		//标记 是否 忽略玩家
 		bool flag__ignore_players = false;
 		//标记 是否 忽略火箭弹
@@ -83,24 +94,25 @@ namespace AN0FCS_RADAR_DEV
 		//周期 更新输出
 		int period__update_output = 30;
 		//周期 更新目标序列
-		int period__update_targets_sequence = 30;
+		int period__update_targets_sequence = 10;
+		//周期 更新自动炮塔对象
+		int period__update_targets_of_auto_turrets = 1;
 
-		//距离 最小距离
+		//距离 最小距离 (低于此距离的目标不会被摄像头锁定)
 		double distance_min = 10;
 		//距离 扫描距离
-		double distance_scan = 3000;
-		//度数 最大射击误差角(大于这个值会停止射击)
+		double distance_scan = 2000;
+		//度数 最大射击误差角 (大于这个值会停止射击)
 		double degree__max_error_on_fire = 3;
 
-		//系数 PID算法三项基准系数(全局)
-		Vector3D vector_coeff = new Vector3D(100, 0, 20);
 
-		//以上是脚本配置字段
+		// 以上是脚本配置字段
+
 
 		//列表 显示单元
 		List<DisplayUnit> list__display_units = new List<DisplayUnit>();
 
-		bool flag__custom_tgt_locked;//标记 自动控制
+		bool flag__custom_tgt_locked;//标记 用户自定义目标被锁定
 
 		//计数 脚本运行命令次数
 		long count__run_cmd = 0;
@@ -116,13 +128,12 @@ namespace AN0FCS_RADAR_DEV
 		int time__before_next_scan = 0;
 		//次数 距离下一次 序列更新
 		int time__before_next_seq_u = 0;
-		//计数 固定摄像机
-		long count__fixed_cameras = 0;
 
 		//时间戳(脚本全局, ms)
 		long timestamp = 0;
 		//时间段
 		long time_span;
+
 		//增量 每一帧的增量
 		double increment__per_frame = 0;
 		//射程变化量(持续取平均)
@@ -138,20 +149,21 @@ namespace AN0FCS_RADAR_DEV
 		//目标 用户目标 (摄像头锁定
 		Target target = new Target();
 		//列表 自动炮台目标
-		Dictionary<long, Target> dict__tgts_of_auto_turrets;
+		Dictionary<long, Target> dict__targets_of_auto_turrets;
 		//列表 按速度排序(ASC)
 		List<Target> list__tgts_order_by_speed = new List<Target>();
 		//列表 按距离排序(ASC)
 		List<Target> list__tgts_order_by_distance = new List<Target>();
 
 		//字符串构建器 标题信息
-		StringBuilder str_builder__title = new StringBuilder();
+		StringBuilder string_builder__title = new StringBuilder();
 		//字符串构建器 脚本信息
-		StringBuilder str_builder__script_info = new StringBuilder();
+		StringBuilder string_builder__script_info = new StringBuilder();
 
-		StringBuilder str_builder__tgts = new StringBuilder();//目标列表
+		//字符串构建器 目标信息
+		StringBuilder string_builder__targets = new StringBuilder();
 		//字符串构建器 测试信息
-		StringBuilder str_builder__test_info = new StringBuilder();
+		StringBuilder string_builder__test_info = new StringBuilder();
 
 		//对象管理器
 		ObjectsManager manager_objects;
@@ -207,42 +219,38 @@ namespace AN0FCS_RADAR_DEV
 
 		#region 成员函数
 
-		//脚本更新
+		// 脚本更新
 		void update_script()
 		{
-			var tmp = sum_range; sum_range = 0;
-			// 更新总射程
-			foreach (var i in manager_objects.list_cameras)
-				sum_range += i.AvailableScanRange;
-			// 更新射程变化量 (平滑)
-			variation_range = TK.cal_smooth_avg(variation_range, sum_range - tmp);
+			// 更新摄像头数据
+			update_camera_data();
 
-			// 维护时间戳
-			timestamp += time_span = Runtime.TimeSinceLastRun.Milliseconds;
-			position = Me.GetPosition();//当前位置设为编程块所在位置
+			// 更新时间戳
+			update_timestamp();
 
-			foreach (var i in manager_objects.list__auto_turrets)//更新自动炮塔的目标
+			//当前位置设为编程块所在位置
+			position = Me.GetPosition();
+
+			// 获取当前帧自动炮塔的目标
+			foreach (var turret in manager_objects.list__auto_turrets)
 			{
-				if (i.HasTarget)//存在目标
+				if (turret.HasTarget)//存在目标
 				{
-					var e = i.GetTargetedEntity();//获取目标实体
-					if (dict__tgts_of_auto_turrets.ContainsKey(e.EntityId))
-						dict__tgts_of_auto_turrets[e.EntityId].set(timestamp, e, position);
+					// 获取目标实体信息
+					var entity = turret.GetTargetedEntity();
+					if (dict__targets_of_auto_turrets.ContainsKey(entity.EntityId))
+						// 存在目标则更新
+						dict__targets_of_auto_turrets[entity.EntityId].set(timestamp, entity, position);
 					else
-						dict__tgts_of_auto_turrets[e.EntityId] = new Target(timestamp, e, position);
+						// 不存在则新建
+						dict__targets_of_auto_turrets[entity.EntityId] = new Target(timestamp, entity, position);
 				}
-			}
-			if (TK.check_time(ref time__before_next_seq_u, period__update_targets_sequence))//更新目标序列(重新排序)
-			{
-				list__tgts_order_by_distance.Sort((x, y) => x.d.CompareTo(y.d));
-				list__tgts_order_by_distance.Sort((x, y) => x.s.CompareTo(y.s));
 			}
 
 			try
 			{
 				if (flag__custom_tgt_locked)
 					flag__custom_tgt_locked = lock_target();//锁定目标
-				// 丢失锁定后在最后一个位置附近扫描一圈
 			}
 			catch (Exception e)
 			{
@@ -253,45 +261,70 @@ namespace AN0FCS_RADAR_DEV
 			++count_update;//更新次数+1
 		}
 
+		// 更新摄像头数据
+		void update_camera_data()
+		{
+			var tmp = sum_range;
+			sum_range = 0;
+			// 更新当前帧摄像头总射程
+			foreach (var i in manager_objects.list_cameras)
+				sum_range += i.AvailableScanRange;
+			// 更新射程变化量 (平滑)
+			variation_range = TK.cal_smooth_avg(variation_range, sum_range - tmp);
+		}
+
+		// 更新时间戳
+		void update_timestamp()
+			=> timestamp += time_span = Runtime.TimeSinceLastRun.Milliseconds;
+
 		//执行指令
 		void run_command(string str_arg)
 		{
-			
+
 		}
 
-		//扫描(搜寻目标)
-		bool scan(Vector3D v3d_tgt)
+
+		// 扫描 (朝指定坐标投射)
+		bool scan(Vector3D vector_coordinate)
 		{
+			// 检查摄像头数量, 没有摄像头直接退出
 			if (manager_objects.list_cameras.Count == 0)
 				return false;
-			
-			var entityInfo = new MyDetectedEntityInfo();
+
+			// 目标实体信息
+			var info_entity = new MyDetectedEntityInfo();
+			// 偏航, 俯仰
 			float yaw, pitch;
+			// 目标距离
 			double distance = 0;
+
 			if (time__before_next_scan <= 0)
 			{
 				foreach (var camera in manager_objects.list_cameras)
 				{
 					// 投射朝向
-					var orientation = v3d_tgt - camera.WorldMatrix.Translation;
-					// 朝向转 yaw+pitch
+					var orientation = vector_coordinate - camera.WorldMatrix.Translation;
+
+					// 全局朝向转 yaw+pitch
 					TK.global_to_yaw_pitch(out yaw, out pitch, camera.WorldMatrix, orientation);
+
 					// 检查是否超过了当前摄像头的射界
 					if (Math.Abs(yaw) > camera.RaycastConeLimit || Math.Abs(pitch) > camera.RaycastConeLimit)
 						continue;
+
 					// 进行投射
-					entityInfo = camera.Raycast(1.05 * orientation.Length(), pitch, yaw);
-					if (manager_objects.set__self_ids.Contains(entityInfo.EntityId))
-						// 扫描到自身, 跳过, 换下一个摄像头
+					info_entity = camera.Raycast(1.05 * orientation.Length(), pitch, yaw);
+					if (manager_objects.set__self_ids.Contains(info_entity.EntityId))
+						// 扫描到自身网格, 跳过
 						continue;
 					// 计算目标距离摄像头的距离
-					distance = (entityInfo.Position - camera.WorldMatrix.Translation).Length();
+					distance = (info_entity.Position - camera.WorldMatrix.Translation).Length();
 					break;
 				}
 				// 设置下一次扫描的冷却时间
-				if (flag__enable_one_raycast)
+				if (flag__enable_unlimited_raycast)
 					time__before_next_scan = 1;
-				else if (entityInfo.IsEmpty())
+				else if (info_entity.IsEmpty())
 					time__before_next_scan = variation_range > 0 ? (int)(distance_scan / variation_range) : int.MaxValue;
 				else
 					// 当前消耗值 / 摄像头能量增量
@@ -300,10 +333,11 @@ namespace AN0FCS_RADAR_DEV
 				// 除法计算后转为整型可能导致值为0的情况, 之后再次--导致值为-1, 因此入口条件设为<=0
 			}
 			--time__before_next_scan;
+
 			// 扫描到对象且距离超过阈值
-			if (!entityInfo.IsEmpty() && distance > distance_min)
+			if (!info_entity.IsEmpty() && distance > distance_min)
 			{
-				switch (entityInfo.Type)//类型过滤器
+				switch (info_entity.Type)//类型过滤器
 				{
 					case MyDetectedEntityType.CharacterHuman://人类角色
 					case MyDetectedEntityType.CharacterOther://非人角色
@@ -323,7 +357,7 @@ namespace AN0FCS_RADAR_DEV
 					case MyDetectedEntityType.None://空
 						return false;//被忽略的类型
 				}
-				switch (entityInfo.Relationship)//关系过滤器
+				switch (info_entity.Relationship)//关系过滤器
 				{
 					case MyRelationsBetweenPlayerAndBlock.Friends://友方
 					case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
@@ -334,21 +368,21 @@ namespace AN0FCS_RADAR_DEV
 					case MyRelationsBetweenPlayerAndBlock.Enemies://敌对方
 						if (flag__ignore_the_enemy) return false; break;
 				}
-				target.set(timestamp, entityInfo, position); return true;
+				target.set(timestamp, info_entity, position); return true;
 			}
 			return false;
 		}
 
-		//尝试锁定目标
+		//尝试锁定目标 (返回是否成功)
 		bool lock_target()
 		{
-			Vector3D pv, pa, pa_avl, pm, pm2, p = target.p;
+			Vector3D pv, pa, pa_avl, pm, pm2, position = target.position;
 			//时间
-			var t = (timestamp - target.ts) / 1000f;
-			pa_avl = pa = pv = p + target.v * t;
-			if (!target.a_a.IsZero()) { pa += 0.5 * target.a * t * t; pa_avl += 0.5 * target.a_a * t * t; }
+			var time = (timestamp - target.timestamp) / 1000f;
+			pa_avl = pa = pv = position + target.v * time;
+			if (!target.acc_average.IsZero()) { pa += 0.5 * target.acc * time * time; pa_avl += 0.5 * target.acc_average * time * time; }
 			// 中点
-			pm = (pa + pv) / 2; pm2 = (p + pm) / 2;
+			pm = (pa + pv) / 2; pm2 = (position + pm) / 2;
 			// 五点探测锁定
 			if (scan(pa) || scan(pa_avl) || scan(pv) || scan(pm) || scan(pm2))
 			{
@@ -366,24 +400,26 @@ namespace AN0FCS_RADAR_DEV
 			if (!TK.check_time(ref time__before_next_output_update, period__update_output))
 				return;
 			//清空
-			str_builder__title.Clear(); str_builder__script_info.Clear();
-			str_builder__title.Append("<script> ANO-RADAR V0.0.0 " + array__runtime_chars[index__crt_char_pattern]);
-			str_builder__script_info.Append(
-				$"\n<count_update|TS|TSP> {count_update} {timestamp} {time_span}"
-				+ "\n<count_tgt> " + dict__tgts_of_auto_turrets.Keys.Count + (flag__custom_tgt_locked ? " LOCKED" : " NO TGT")
-				+ "\n<orientation_global> " + vector__target_pisition.ToString("f2")
-				+ "<count_all_blocks> " + manager_objects.list_blocks.Count
-				+ "\n<count_controllers> " + manager_objects.list_controllers.Count
-				+ "\n<count_cameras> " + manager_objects.list_cameras.Count
-				+ "\n<count__fixed_cameras> " + count__fixed_cameras
-				+ "\n<count_auto_turrets> " + manager_objects.list__auto_turrets.Count
-				+ "\n");
-			str_builder__tgts.Append(Target.get_title());
-			str_builder__tgts.Append(target);
-			foreach (var i in dict__tgts_of_auto_turrets.Values)
-				str_builder__tgts.Append(i);
-			Echo(str_builder__title.ToString());
-			Echo(str_builder__script_info.ToString());
+			string_builder__title.Clear(); string_builder__script_info.Clear();
+			string_builder__title.Append("<script> ANO-RADAR V0.0.0 " + array__runtime_chars[index__crt_char_pattern]);
+			string_builder__script_info.Append
+			(
+				$"\n<count_update | TS | TSP> {count_update} {timestamp} {time_span}"
+				+ $"\n<count_tgt> {dict__targets_of_auto_turrets.Keys.Count + (flag__custom_tgt_locked ? " LOCKED" : " NO TGT")}"
+				+ $"\n<orientation_global> {vector__target_pisition.ToString("f2")}"
+				+ $"\n<count_all_blocks> {manager_objects.list_blocks.Count}"
+				+ $"\n<count_controllers> {manager_objects.list_controllers.Count}"
+				+ $"\n<count_cameras> {manager_objects.list_cameras.Count}"
+				+ $"\n<count_auto_turrets> {manager_objects.list__auto_turrets.Count}\n"
+			);
+
+			string_builder__targets.Append($"<camera_target>\n{target}");
+			foreach (var target in dict__targets_of_auto_turrets.Values)
+				string_builder__targets.Append(target);
+			// 显示内容
+			Echo(string_builder__title.ToString());
+			Echo(string_builder__script_info.ToString());
+			Echo(string_builder__targets.ToString());
 
 			//遍历显示单元
 			foreach (var item in list__display_units)
@@ -393,21 +429,6 @@ namespace AN0FCS_RADAR_DEV
 					//图形化显示
 					if (item.lcd.ContentType != ContentType.SCRIPT)
 						continue;
-					//switch (item.mode_display)
-					//{
-					//case DisplayUnit.DisplayMode.General:
-					//	draw_illegal_lcd_custom_data_hint(item.lcd);
-					//	break;
-					//case DisplayUnit.DisplayMode.SingleTurret:
-					//	draw_cannons_state(item.lcd, item.index_begin, item.index_begin);
-					//	break;
-					//case DisplayUnit.DisplayMode.MultipleTurret:
-					//	draw_cannons_state(item.lcd, item.index_begin, item.index_end);
-					//	break;
-					//case DisplayUnit.DisplayMode.None:
-					//	draw_illegal_lcd_custom_data_hint(item.lcd);
-					//	break;
-					//}
 				}
 				else
 				{
@@ -417,20 +438,23 @@ namespace AN0FCS_RADAR_DEV
 					switch (item.mode_display)
 					{
 						case DisplayUnit.DisplayMode.Script:
-							item.lcd.WriteText(str_builder__title); item.lcd.WriteText(str_builder__script_info, true); break;
+							item.lcd.WriteText(string_builder__title);
+							item.lcd.WriteText(string_builder__script_info, true);
+							break;
 						case DisplayUnit.DisplayMode.Targets:
 							{
-								// TODO
+
 							}
 							break;
 						case DisplayUnit.DisplayMode.None:
-							item.lcd.WriteText("<warning> illegal custom data in this LCD\n<by> script ANO-R"); break;
+							item.lcd.WriteText("<warning> illegal custom data in this LCD\n<by> script ANO-R");
+							break;
 					}
 				}
 			}
 
 			//显示测试信息
-			Echo("\n<debug>\n" + str_builder__test_info.ToString());
+			Echo("\n<debug>\n" + string_builder__test_info.ToString());
 
 			if (TK.check_time(ref time__before_next_char_pattern_update, 1))
 				if ((++index__crt_char_pattern) >= array__runtime_chars.Length)
@@ -440,22 +464,28 @@ namespace AN0FCS_RADAR_DEV
 		//初始化脚本
 		void init_script()
 		{
-			init_script_config();//初始化脚本配置
+			// 初始化脚本配置
+			init_script_config();
+			// 检查配置合法性
 			string str_error = check_config();
-			//检查配置合法性
-			if (str_error != null) Echo(str_error);
+			// 非法配置输出信息
+			if (str_error != null)
+				Echo(str_error);
 
-			//构建网格图 传递program指针
+			// 构建对象管理器
 			manager_objects = new ObjectsManager(this);
-			Echo(manager_objects.builder_str__init_info.ToString());
+			// 输出初始化过程中的信息
+			Echo(manager_objects.string_builder__init_info.ToString());
 
-			count__fixed_cameras = manager_objects.list_cameras.Count;
-
-			config_script.init_config();//初始化配置
+			// 初始化配置
+			config_script.init_config();
+			// 输出配置初始化过程中的信息
 			Echo(config_script.string_builder__error_info.ToString());
 
-			listener = IGC.RegisterBroadcastListener("");
+			// 注册广播监听器
+			listener = IGC.RegisterBroadcastListener(string__inner_cast_channel + suffix_string__scanning_coordinate);
 
+			// 初始化脚本显示单元
 			init_script_display_units();
 
 			if (manager_objects.list_cameras.Count > 0)//计算最速扫描周期
@@ -484,6 +514,7 @@ namespace AN0FCS_RADAR_DEV
 				//拆分显示器的用户数据
 				string[] array_str = split_string(item.CustomData);
 				bool flag_illegal = false;
+				int offset = 0;
 
 				DisplayUnit unit = new DisplayUnit(item);
 
@@ -493,7 +524,10 @@ namespace AN0FCS_RADAR_DEV
 				else
 				{
 					if (array_str[array_str.Length - 1].Equals("graphic"))
-					{ offset = 1; unit.flag_graphic = true; }
+					{
+						offset = 1;
+						unit.flag_graphic = true;
+					}
 					//用户数据不为空
 					switch (array_str[0])
 					{
@@ -538,11 +572,11 @@ namespace AN0FCS_RADAR_DEV
 			config_set__script = new DataConfigSet("AN0-R CONFIGURATION");
 
 			//添加配置项
-			config_set__script.add_item((new Variant(nameof(tag__script_core_group), Variant.VType.String, () => tag__script_core_group, x => { tag__script_core_group = (string)x; })));
+			config_set__script.add_item((new Variant(nameof(name__script_core_group), Variant.VType.String, () => name__script_core_group, x => { name__script_core_group = (string)x; })));
 
 			config_set__script.add_item((new Variant(nameof(flag__enable_auto_turret_target_locking), Variant.VType.Bool, () => flag__enable_auto_turret_target_locking, x => { flag__enable_auto_turret_target_locking = (bool)x; })));
-			config_set__script.add_item((new Variant(nameof(flag__enable_lock_target_off_line), Variant.VType.Bool, () => flag__enable_lock_target_off_line, x => { flag__enable_lock_target_off_line = (bool)x; })));
-			config_set__script.add_item((new Variant(nameof(flag__enable_one_raycast), Variant.VType.Bool, () => flag__enable_one_raycast, x => { flag__enable_one_raycast = (bool)x; })));
+			config_set__script.add_item((new Variant(nameof(flag__enable_cast_targets_off_line), Variant.VType.Bool, () => flag__enable_cast_targets_off_line, x => { flag__enable_cast_targets_off_line = (bool)x; })));
+			config_set__script.add_item((new Variant(nameof(flag__enable_unlimited_raycast), Variant.VType.Bool, () => flag__enable_unlimited_raycast, x => { flag__enable_unlimited_raycast = (bool)x; })));
 			config_set__script.add_item((new Variant(nameof(flag__ignore_players), Variant.VType.Bool, () => flag__ignore_players, x => { flag__ignore_players = (bool)x; })));
 			config_set__script.add_item((new Variant(nameof(flag__ignore_rockets), Variant.VType.Bool, () => flag__ignore_rockets, x => { flag__ignore_rockets = (bool)x; })));
 			config_set__script.add_item((new Variant(nameof(flag__ignore_meteors), Variant.VType.Bool, () => flag__ignore_meteors, x => { flag__ignore_meteors = (bool)x; })));
@@ -552,30 +586,26 @@ namespace AN0FCS_RADAR_DEV
 			config_set__script.add_item((new Variant(nameof(flag__ignore_the_neutral), Variant.VType.Bool, () => flag__ignore_the_neutral, x => { flag__ignore_the_neutral = (bool)x; })));
 			config_set__script.add_item((new Variant(nameof(flag__ignore_the_enemy), Variant.VType.Bool, () => flag__ignore_the_enemy, x => { flag__ignore_the_enemy = (bool)x; })));
 
+			//config_set__script.add_item(new Variant(nameof(period__auto_check), Variant.VType.Int, () => period__auto_check, x => { period__auto_check = (int)x; }));
+			//config_set__script.add_item(new Variant(nameof(period__update_output), Variant.VType.Int, () => period__update_output, x => { period__update_output = (int)x; }));
 
-			config_set__script.add_item((new Variant(nameof(period__auto_check), Variant.VType.Int, () => period__auto_check, x => { period__auto_check = (int)x; })));
-
-
-			config_set__script.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
-			config_set__script.add_config_item(nameof(period__update_output), () => period__update_output, x => { period__update_output = (int)x; });
-
-			config_set__script.add_config_item(nameof(distance_min), () => distance_min, x => { distance_min = (double)x; });
-			config_set__script.add_config_item(nameof(distance_scan), () => distance_scan, x => { distance_scan = (double)x; });
-			config_set__script.add_config_item(nameof(distance_scan), () => distance_scan, x => { distance_scan = (double)x; });
-			config_set__script.add_config_item(nameof(degree__max_error_on_fire), () => degree__max_error_on_fire, x => { degree__max_error_on_fire = (double)x; });
-			config_set__script.add_config_item(nameof(vector_coeff), () => vector_coeff, x => { vector_coeff = (Vector3D)x; });
+			config_set__script.add_item(new Variant(nameof(distance_min), Variant.VType.Float, () => distance_min, x => { distance_min = (double)x; }));
+			config_set__script.add_item(new Variant(nameof(distance_scan), Variant.VType.Float, () => distance_scan, x => { distance_scan = (double)x; }));
+			config_set__script.add_item(new Variant(nameof(degree__max_error_on_fire), Variant.VType.Float, () => degree__max_error_on_fire, x => { degree__max_error_on_fire = (double)x; }));
+			//config_set__script.add_item(new Variant(nameof(vector_coeff), Variant.VType.V3D, () => vector_coeff, x => { vector_coeff = (Vector3D)x; }));
 
 			config_script.add_config_set(config_set__script);
 
 			//初始化配置
-			config_script.parse_custom_data();
+			//config_script.parse_custom_data();
+			config_script.init_config();
 
 		}
 
 		//检查脚本配置(配置合法返回null, 否则返回错误消息)
 		string check_config()
 		{
-			if(tag__script_core_group.Length==0)
+			if (name__script_core_group.Length == 0)
 				return "<error_config> key tag of group name is empty";
 			if (!check_value(period__auto_check)
 				|| !check_value(period__update_output))
@@ -624,29 +654,39 @@ namespace AN0FCS_RADAR_DEV
 		//类 目标
 		class Target
 		{
-			public long ts { get; private set; }//时间戳(目标被发现时的时间戳)
-			public MyDetectedEntityInfo i;//实体信息
-			public Vector3D a { get; private set; }
-			public Vector3D a_a { get; private set; }//瞬时加速度和平均加速度
-			public Vector3D p { get; private set; }
-			public double d { get; private set; }//位置, 距离
-			public double s { get; private set; }//速率
+			public long timestamp { get; private set; }// 时间戳 (目标被发现时的时间戳)
+			public MyDetectedEntityInfo info_entity;// 实体信息
+			public Vector3D acc { get; private set; }
+			public Vector3D acc_average { get; private set; }// 瞬时加速度和平均加速度
+			public Vector3D position => info_entity.Position;// 位置
+			public double distance { get; private set; }// 距离
+			public double speed { get; private set; }// 速率
 			public Target(long _ts, MyDetectedEntityInfo _i, Vector3D _p) { set(_ts, _i, _p); }//构造函数
-			public Target() { ts = -1; }
-			public long id => i.EntityId; public Vector3D v => i.Velocity; public string n => i.Name;
-			public Vector3D next_tick(long ts) => p + i.Velocity * (ts / 1000f);//更新位置
+			public Target() { timestamp = -1; }
+			public long id => info_entity.EntityId; public Vector3D v => info_entity.Velocity;
+			public string name => info_entity.Name;// 名称
+			public Vector3D next_tick(long ts) => position + info_entity.Velocity * (ts / 1000f);//更新位置
 			public void set(long _ts, MyDetectedEntityInfo _i, Vector3D _p)//设置对象
 			{
-				if (i.EntityId == _i.EntityId)
+				if (info_entity.EntityId == _i.EntityId)
 				{
-					a = (_i.Velocity - i.Velocity) * 1000f / (_ts - ts);
-					var t = TK.cal_smooth_avg(a_a.Length(), a.Length());
-					a_a = a_a + t * (a - a_a);
+					acc = (_i.Velocity - info_entity.Velocity) * 1000f / (_ts - timestamp);
+					var t = TK.cal_smooth_avg(acc_average.Length(), acc.Length());
+					acc_average = acc_average + t * (acc - acc_average);
 				}
-				else a = a_a = Vector3D.Zero;
-				ts = _ts; i = _i; p = i.Position; d = (_p - p).Length(); s = i.Velocity.Length();
+				else acc = acc_average = Vector3D.Zero;
+				timestamp = _ts;
+				info_entity = _i;
+				distance = (_p - position).Length();
+				speed = info_entity.Velocity.Length();
 			}
-			public string ToString() => ts < 0 ? "<target> invalid" : $"<target> {n} {id} {i.Type} {TK.nf(d)} {TK.nf(s)} {TK.nf(a.Length())} {TK.nf(a_a.Length())}\n";
+			public string ToString() => timestamp < 0 ? "<target> invalid" :
+				$"<target> --------------------"
+				+ $"\n<name | type> {name} {info_entity.Type} "
+				+ $"\n<id | timestamp> {id} {timestamp}"
+				+ $"\n<distance | position> {TK.nf(distance)} {position.ToString("f2")}"
+				+ $"\n<speed | velocity> {TK.nf(speed)} {info_entity.Velocity.ToString("f2")}"
+				+ $"\n<acc | acc_avg> {TK.nf(acc.Length())} {TK.nf(acc_average.Length())}\n";
 			public static string get_title() => "name id type distance speed acc acc_avg";
 		}
 
@@ -680,7 +720,7 @@ namespace AN0FCS_RADAR_DEV
 
 			Program p = null;
 			//字符串构建器 初始化信息
-			public StringBuilder builder_str__init_info { get; private set; } = new StringBuilder();
+			public StringBuilder string_builder__init_info { get; private set; } = new StringBuilder();
 
 			//构造函数
 			public ObjectsManager(Program _program)
@@ -688,14 +728,14 @@ namespace AN0FCS_RADAR_DEV
 				//成员赋值
 				p = _program;
 				//获取脚本核心编组
-				group__script_core = p.GridTerminalSystem.GetBlockGroupWithName(p.tag__script_core_group);
+				group__script_core = p.GridTerminalSystem.GetBlockGroupWithName(p.name__script_core_group);
 				if (group__script_core == null) return;
 				group__script_core.GetBlocks(list_blocks);
 				group__script_core.GetBlocksOfType(list_controllers);
 				group__script_core.GetBlocksOfType(list_cameras);
 				group__script_core.GetBlocksOfType(list__auto_turrets);
 				group__script_core.GetBlocksOfType(list_displayers);
-				if (p.flag__enable_one_raycast)
+				if (p.flag__enable_unlimited_raycast)
 					foreach (var i in list_cameras)
 					{
 						i.EnableRaycast = true;//启用投射
@@ -713,12 +753,12 @@ namespace AN0FCS_RADAR_DEV
 					{
 						dict__grids_index[item.CubeGrid] = index++;
 						set__self_ids.Add(item.CubeGrid.EntityId);
-						builder_str__init_info.Append($"<info> node {index - 1} {item.CubeGrid.CustomName}\n");
+						string_builder__init_info.Append($"<info> node {index - 1} {item.CubeGrid.CustomName}\n");
 					}
 					if (item.TopGrid != null && !dict__grids_index.ContainsKey(item.TopGrid))
 					{
 						dict__grids_index[item.TopGrid] = index++; set__self_ids.Add(item.TopGrid.EntityId);
-						builder_str__init_info.Append($"<info> node {index - 1} {item.TopGrid.CustomName}\n");
+						string_builder__init_info.Append($"<info> node {index - 1} {item.TopGrid.CustomName}\n");
 					}
 				}
 
@@ -728,11 +768,11 @@ namespace AN0FCS_RADAR_DEV
 			//生成初始化信息
 			private void generate_init_info()
 			{
-				builder_str__init_info.Append($"<info> list_blocks.Count = {list_blocks.Count}\n");
-				builder_str__init_info.Append($"<info> list_cameras.Count = {list_cameras.Count}\n");
-				builder_str__init_info.Append($"<info> list_controllers.Count = {list_controllers.Count}\n");
-				builder_str__init_info.Append($"<info> list__auto_turrets.Count = {list__auto_turrets.Count}\n");
-				builder_str__init_info.Append($"<info> list_displayers.Count = {list_displayers.Count}\n");
+				string_builder__init_info.Append($"<info> list_blocks.Count = {list_blocks.Count}\n");
+				string_builder__init_info.Append($"<info> list_cameras.Count = {list_cameras.Count}\n");
+				string_builder__init_info.Append($"<info> list_controllers.Count = {list_controllers.Count}\n");
+				string_builder__init_info.Append($"<info> list__auto_turrets.Count = {list__auto_turrets.Count}\n");
+				string_builder__init_info.Append($"<info> list_displayers.Count = {list_displayers.Count}\n");
 
 				//buinder_str__init_info.Append($"<info> list__other_blocks.Count = {list__other_blocks.Count}\n");
 			}
@@ -761,10 +801,16 @@ namespace AN0FCS_RADAR_DEV
 			}
 
 			//检查是否到时间执行某步骤
-			public static bool check_time(ref int t, int p)
+			public static bool check_time(ref int time, int period)
 			{
-				bool res = false; if (t == 0) { t = p; res = true; }
-				--t; return res;
+				bool res = false;
+				if (time == 0)
+				{
+					time = period;
+					res = true;
+				}
+				--time;
+				return res;
 			}
 
 			//转字符串(保留2位小数)
@@ -791,7 +837,6 @@ namespace AN0FCS_RADAR_DEV
 			public object value;
 			public Func<object> get { get; private set; } = null;//读委托
 			public Action<object> set { get; private set; } = null;//写委托
-																   //bool? v_b; long? v_l; double? v_d; string v_s = null; Vector3D? v_v3d;
 
 			//构造函数 传递名称和类型
 			public Variant(string _name, VType _type = VType.String, Func<object> _getter = null, Action<object> _setter = null)
