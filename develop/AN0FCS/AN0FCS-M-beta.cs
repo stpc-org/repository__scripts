@@ -109,14 +109,14 @@ namespace AN0FCS_MAIN_DEV
 		bool flag__enable_auto_check = true;
 		// 标记 是否 开启自动射击
 		bool flag__enable_auto_fire = true;
-		
+
 		// 标记 是否 在全局操控模式下扫描
 		bool flag__enable_scan_under_global_control_mode = true;
 		// 标记 是否 开启全局操控模式 (此项针对飞船考虑)
 		bool flag__enable_global_control_mode = true;
 		// 标记 是否 锁定自动炮塔的目标
 		bool flag__enable_auto_turret_target_locking = true;
-		
+
 		// 标记 是否 启用炮塔复位
 		bool flag__enable_turret_reset = true;
 		// 标记 是否 当用户离开时重置全局朝向 (全局朝向固定为进入时的位置)
@@ -131,7 +131,7 @@ namespace AN0FCS_MAIN_DEV
 		bool flag__enable_elevation_deflection_stabilizer = true;
 		// 标记 是否 启用操控平面防跨越
 		bool flag__enable_control_plane_crossing_prevention = true;
-		
+
 		// 标记 是否 忽略玩家
 		bool flag__ignore_players = false;
 		// 标记 是否 忽略火箭弹

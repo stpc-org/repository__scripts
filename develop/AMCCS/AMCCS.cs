@@ -259,17 +259,17 @@ namespace AMCCS_DEV
 				case UpdateType.Terminal:
 				case UpdateType.Trigger:
 				case UpdateType.Script:
-					{
-						run_command(str_arg);
-					}
-					break;
+				{
+					run_command(str_arg);
+				}
+				break;
 				case UpdateType.Update1:
 				case UpdateType.Update10:
 				case UpdateType.Update100:
-					{
-						update_script();
-					}
-					break;
+				{
+					update_script();
+				}
+				break;
 			}
 		}
 
@@ -339,37 +339,37 @@ namespace AMCCS_DEV
 						fire(FireMode.Round, FireMode.Round);
 						break;
 					case "toggle_inter_group_fire_mode"://切换组间射击模式
-						{
-							if (mode_fire__inter_group == FireMode.Salvo)
-								mode_fire__inter_group = FireMode.Round;
-							else
-								mode_fire__inter_group = FireMode.Salvo;
-						}
-						break;
+					{
+						if (mode_fire__inter_group == FireMode.Salvo)
+							mode_fire__inter_group = FireMode.Round;
+						else
+							mode_fire__inter_group = FireMode.Salvo;
+					}
+					break;
 					case "toggle_intra_group_fire_mode"://切换组内射击模式
-						{
-							if (mode_fire__intra_group == FireMode.Salvo)
-								mode_fire__intra_group = FireMode.Round;
-							else
-								mode_fire__intra_group = FireMode.Salvo;
-							foreach (var item in list__cannon_groups)
-								item.set_group_fire_mode(mode_fire__intra_group);
-						}
-						break;
+					{
+						if (mode_fire__intra_group == FireMode.Salvo)
+							mode_fire__intra_group = FireMode.Round;
+						else
+							mode_fire__intra_group = FireMode.Salvo;
+						foreach (var item in list__cannon_groups)
+							item.set_group_fire_mode(mode_fire__intra_group);
+					}
+					break;
 					case "toggle_auto_fire_onoff":
-						{
-							flag__auto_fire = !flag__auto_fire;
-							//设置自动射击前的延迟
-							times__before_next_auto_fire = delay__before_auto_fire;
-						}
-						break;
+					{
+						flag__auto_fire = !flag__auto_fire;
+						//设置自动射击前的延迟
+						times__before_next_auto_fire = delay__before_auto_fire;
+					}
+					break;
 					case "check_cannons_state":
-						{
-							//更新所有火炮
-							foreach (var item in list__piston_cannons)
-								item.check_once_immediately();
-						}
-						break;
+					{
+						//更新所有火炮
+						foreach (var item in list__piston_cannons)
+							item.check_once_immediately();
+					}
+					break;
 				}
 			}
 			else
@@ -407,10 +407,10 @@ namespace AMCCS_DEV
 			string_builder__script_info.Clear();
 			string_builder__script_info.Append(
 				"<script> " + str__script_version + array__runtime_chars[index__crt_char_pattern]
-				+ "\n<mode_script>" + mode_script
+				+ "\n\n<count_update> " + count_update
+				+ "\n<mode_script> " + mode_script
 				+ "\n<mode_fire__inter_group>" + mode_fire__inter_group
 				+ "\n<mode_fire__intra_group>" + mode_fire__intra_group
-				+ "\n<count_update> " + count_update
 				+ "\n<count_trigger> " + count__run_cmd
 				+ "\n<count_fire> " + count_fire
 				+ "\n<flag__auto_fire> " + flag__auto_fire
@@ -461,10 +461,10 @@ namespace AMCCS_DEV
 								list__cannon_groups[item.index_begin].get__index_end());
 							break;
 						case DisplayUnit.DisplayMode.MultipleGroup:
-							{
+						{
 
-							}
-							break;
+						}
+						break;
 						case DisplayUnit.DisplayMode.None:
 							draw_illegal_lcd_custom_data_hint(item.displayer);
 							break;
@@ -487,24 +487,24 @@ namespace AMCCS_DEV
 								list__piston_cannons[item.index_begin].get_cannon_LCD_info());
 							break;
 						case DisplayUnit.DisplayMode.MultipleCannon:
-							{
-								StringBuilder sb_temp = new StringBuilder();
-								for (var i = item.index_begin; i <= item.index_end; ++i)
-									sb_temp.Append(list__piston_cannons[i].get_cannon_simple_info() + "\n");
-								item.displayer.WriteText(sb_temp);
-							}
-							break;
+						{
+							StringBuilder sb_temp = new StringBuilder();
+							for (var i = item.index_begin; i <= item.index_end; ++i)
+								sb_temp.Append(list__piston_cannons[i].get_cannon_simple_info() + "\n");
+							item.displayer.WriteText(sb_temp);
+						}
+						break;
 						case DisplayUnit.DisplayMode.SingleGroup:
 							item.displayer.WriteText(list__cannon_groups[item.index_begin].get_group_LCD_info());
 							break;
 						case DisplayUnit.DisplayMode.MultipleGroup:
-							{
-								StringBuilder sb_temp = new StringBuilder();
-								for (var i = item.index_begin; i <= item.index_end; ++i)
-									sb_temp.Append(list__cannon_groups[i].get_group_LCD_info() + "\n");
-								item.displayer.WriteText(sb_temp);
-							}
-							break;
+						{
+							StringBuilder sb_temp = new StringBuilder();
+							for (var i = item.index_begin; i <= item.index_end; ++i)
+								sb_temp.Append(list__cannon_groups[i].get_group_LCD_info() + "\n");
+							item.displayer.WriteText(sb_temp);
+						}
+						break;
 						case DisplayUnit.DisplayMode.None:
 							item.displayer.WriteText("<warning> illegal custom data in this LCD\n<by> script AMCCS");
 							break;
@@ -845,107 +845,107 @@ namespace AMCCS_DEV
 							unit.mode_display = DisplayUnit.DisplayMode.General;
 							break;
 						case "cannon":
+						{
+							if (list_str.Count == 2 + offset)//单个
 							{
-								if (list_str.Count == 2 + offset)//单个
+								int index = 0;
+								if (!int.TryParse(list_str[1], out index))
 								{
-									int index = 0;
-									if (!int.TryParse(list_str[1], out index))
-									{
-										flag_illegal = true;
-										break;
-									}
-									//边界检查
-									if (index < index__cannon_begin || index > index__cannon_end)
-									{
-										flag_illegal = true;
-										break;
-									}
-									unit.index_begin = index - index__cannon_begin;
-									unit.mode_display = DisplayUnit.DisplayMode.SingleCannon;
-								}
-								else if (list_str.Count == 3 + offset)//多个
-								{
-									int index_begin = 0, index_end = 0;
-									if (!int.TryParse(list_str[1], out index_begin))
-									{
-										flag_illegal = true;
-										break;
-									}
-									if (!int.TryParse(list_str[2], out index_end))
-									{
-										flag_illegal = true;
-										break;
-									}
-									//边界检查
-									if (index_begin < index__cannon_begin || index_begin > index__cannon_end)
-									{
-										flag_illegal = true;
-										break;
-									}
-									if (index_end < index__cannon_begin || index_end > index__cannon_end)
-									{
-										flag_illegal = true;
-										break;
-									}
-									unit.index_begin = index_begin - index__cannon_begin;
-									unit.index_end = index_end - index__cannon_begin;
-									unit.mode_display = DisplayUnit.DisplayMode.MultipleCannon;
-								}
-								else
 									flag_illegal = true;
+									break;
+								}
+								//边界检查
+								if (index < index__cannon_begin || index > index__cannon_end)
+								{
+									flag_illegal = true;
+									break;
+								}
+								unit.index_begin = index - index__cannon_begin;
+								unit.mode_display = DisplayUnit.DisplayMode.SingleCannon;
 							}
-							break;
+							else if (list_str.Count == 3 + offset)//多个
+							{
+								int index_begin = 0, index_end = 0;
+								if (!int.TryParse(list_str[1], out index_begin))
+								{
+									flag_illegal = true;
+									break;
+								}
+								if (!int.TryParse(list_str[2], out index_end))
+								{
+									flag_illegal = true;
+									break;
+								}
+								//边界检查
+								if (index_begin < index__cannon_begin || index_begin > index__cannon_end)
+								{
+									flag_illegal = true;
+									break;
+								}
+								if (index_end < index__cannon_begin || index_end > index__cannon_end)
+								{
+									flag_illegal = true;
+									break;
+								}
+								unit.index_begin = index_begin - index__cannon_begin;
+								unit.index_end = index_end - index__cannon_begin;
+								unit.mode_display = DisplayUnit.DisplayMode.MultipleCannon;
+							}
+							else
+								flag_illegal = true;
+						}
+						break;
 						case "group":
+						{
+							if (list_str.Count == 2 + offset)
 							{
-								if (list_str.Count == 2 + offset)
+								int index = 0;
+								if (!int.TryParse(list_str[1], out index))
 								{
-									int index = 0;
-									if (!int.TryParse(list_str[1], out index))
-									{
-										flag_illegal = true;
-										break;
-									}
-									//边界检查
-									if (index < 0 || index >= list__cannon_groups.Count)
-									{
-										flag_illegal = true;
-										break;
-									}
-									unit.index_begin = index;
-									unit.mode_display = DisplayUnit.DisplayMode.SingleGroup;
-								}
-								else if (list_str.Count == 3 + offset)
-								{
-									int index_begin = 0, index_end = 0;
-									if (!int.TryParse(list_str[1], out index_begin))
-									{
-										flag_illegal = true;
-										break;
-									}
-									if (!int.TryParse(list_str[2], out index_end))
-									{
-										flag_illegal = true;
-										break;
-									}
-									//边界检查
-									if (index_begin < 0 || index_begin >= list__cannon_groups.Count)
-									{
-										flag_illegal = true;
-										break;
-									}
-									if (index_end < 0 || index_end >= list__cannon_groups.Count)
-									{
-										flag_illegal = true;
-										break;
-									}
-									unit.index_begin = index_begin;
-									unit.index_end = index_end;
-									unit.mode_display = DisplayUnit.DisplayMode.MultipleGroup;
-								}
-								else
 									flag_illegal = true;
+									break;
+								}
+								//边界检查
+								if (index < 0 || index >= list__cannon_groups.Count)
+								{
+									flag_illegal = true;
+									break;
+								}
+								unit.index_begin = index;
+								unit.mode_display = DisplayUnit.DisplayMode.SingleGroup;
 							}
-							break;
+							else if (list_str.Count == 3 + offset)
+							{
+								int index_begin = 0, index_end = 0;
+								if (!int.TryParse(list_str[1], out index_begin))
+								{
+									flag_illegal = true;
+									break;
+								}
+								if (!int.TryParse(list_str[2], out index_end))
+								{
+									flag_illegal = true;
+									break;
+								}
+								//边界检查
+								if (index_begin < 0 || index_begin >= list__cannon_groups.Count)
+								{
+									flag_illegal = true;
+									break;
+								}
+								if (index_end < 0 || index_end >= list__cannon_groups.Count)
+								{
+									flag_illegal = true;
+									break;
+								}
+								unit.index_begin = index_begin;
+								unit.index_end = index_end;
+								unit.mode_display = DisplayUnit.DisplayMode.MultipleGroup;
+							}
+							else
+								flag_illegal = true;
+						}
+						break;
 						default:
 							unit.mode_display = DisplayUnit.DisplayMode.None;
 							break;
@@ -1389,7 +1389,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group_pistons == null)
 				{
-					string_builder__init_info.Append($"<error> no group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
 					status_cannon = CannonStatus.Invalid;
 				}
 				else
@@ -1399,7 +1399,7 @@ namespace AMCCS_DEV
 					//检查
 					if (list_pistons.Count == 0)
 					{
-						string_builder__init_info.Append($"<error> no any piston found in group \"{name_group}\"\n");
+						string_builder__init_info.Append($"<error>\nno any piston found in group \"{name_group}\"\n");
 						status_cannon = CannonStatus.Invalid;
 					}
 					else
@@ -1422,7 +1422,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group_releasers == null)
 				{
-					string_builder__init_info.Append($"<error> no group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
 					status_cannon = CannonStatus.Invalid;
 				}
 				else
@@ -1432,7 +1432,7 @@ namespace AMCCS_DEV
 					//检查
 					if (list_releasers.Count == 0)
 					{
-						string_builder__init_info.Append($"<error> no any rotor or hinge found in group \"{name_group}\"\n");
+						string_builder__init_info.Append($"<error>\nno any rotor or hinge found in group \"{name_group}\"\n");
 						status_cannon = CannonStatus.Invalid;
 					}
 					//else
@@ -1449,7 +1449,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group_detachers == null)
 				{
-					string_builder__init_info.Append($"<error> no group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
 					status_cannon = CannonStatus.Invalid;
 				}
 				else
@@ -1459,7 +1459,7 @@ namespace AMCCS_DEV
 					//检查
 					if (list_releasers.Count == 0)
 					{
-						string_builder__init_info.Append($"<error> no gatlin or merge bLock found in group \"{name_group}\"\n");
+						string_builder__init_info.Append($"<error>\nno gatlin or merge bLock found in group \"{name_group}\"\n");
 						status_cannon = CannonStatus.Invalid;
 					}
 					else
@@ -1487,7 +1487,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group__cannon_detach_part_grid_locator == null)
 				{
-					string_builder__init_info.Append($"<error> no group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\"\n");
 				}
 				else
 				{
@@ -1495,7 +1495,7 @@ namespace AMCCS_DEV
 					group__cannon_detach_part_grid_locator.GetBlocksOfType<IMyTerminalBlock>(list_temp);
 					locator__cannon_detach_part_grid = list_temp.Count == 0 ? null : list_temp[0];
 					if (locator__cannon_detach_part_grid == null)
-						string_builder__init_info.Append($"<warning> no locator found in group \"{name_group}\" , ignored\n");
+						string_builder__init_info.Append($"<warning>\nno locator found in group \"{name_group}\", ignored\n");
 				}
 
 				/********************
@@ -1506,7 +1506,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group__cannon_shell_projector == null)
 				{
-					string_builder__init_info.Append($"<error> no group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\"\n");
 				}
 				else
 				{
@@ -1514,7 +1514,7 @@ namespace AMCCS_DEV
 					group__cannon_shell_projector.GetBlocksOfType<IMyProjector>(list_temp);
 					projector__cannon_shell = list_temp.Count == 0 ? null : list_temp[0];
 					if (projector__cannon_shell == null)
-						string_builder__init_info.Append($"<warning> no projector found in group \"{name_group}\" , ignored\n");
+						string_builder__init_info.Append($"<warning>\nno projector found in group \"{name_group}\", ignored\n");
 				}
 
 				/********************
@@ -1527,7 +1527,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group_welders == null)
 				{
-					string_builder__init_info.Append($"<warning> no group found with name \"{name_group}\" , ignored\n");
+					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\", ignored\n");
 				}
 				else
 				{
@@ -1535,7 +1535,7 @@ namespace AMCCS_DEV
 					group_welders.GetBlocksOfType<IMyShipWelder>(list_welders);
 					//检查
 					if (list_welders.Count == 0)
-						string_builder__init_info.Append($"<warning> no any welder found in group \"{name_group}\"\n");
+						string_builder__init_info.Append($"<warning>\nno any welder found in group \"{name_group}\"\n");
 				}
 
 				/********************
@@ -1545,13 +1545,13 @@ namespace AMCCS_DEV
 				name_group = this.program.tag__custom_interface_timer_0 + this.index_cannon;
 				timer__custom_interface_0 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
 				if (timer__custom_interface_0 == null)
-					string_builder__init_info.Append($"<warning> no timer found with name \"{name_group}\" , ignored\n");
+					string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
 
 				//接口1
 				name_group = this.program.tag__custom_interface_timer_1 + this.index_cannon;
 				timer__custom_interface_1 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
 				if (timer__custom_interface_1 == null)
-					string_builder__init_info.Append($"<warning> no timer found with name \"{name_group}\" , ignored\n");
+					string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
 
 				//启用炮弹分离功能
 				if (program.flag__enable_shell_disconnection)
@@ -1564,7 +1564,7 @@ namespace AMCCS_DEV
 					flag__enable_shell_disconnection = false;
 					if (group__speed_limit_breaker == null)
 					{
-						string_builder__init_info.Append($"<error> no group found with name \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
+						string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
 					}
 					else
 					{
@@ -1572,7 +1572,7 @@ namespace AMCCS_DEV
 						//检查
 						if (list__speed_limmit_beakers.Count == 0)
 						{
-							string_builder__init_info.Append($"<error> no pistons found in group \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
+							string_builder__init_info.Append($"<warning>\nno pistons found in group \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
 						}
 						else
 						{
@@ -1599,7 +1599,7 @@ namespace AMCCS_DEV
 					//检查
 					if (group__minor_pistons == null)
 					{
-						string_builder__init_info.Append($"<warning> no group found with name \"{name_group}\" , ignored , but the charge-twice mode will be disabled\n");
+						string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\", ignored , but the charge-twice mode will be disabled\n");
 						flag__enable_two_stage_mode = false;
 					}
 					else
@@ -1609,7 +1609,7 @@ namespace AMCCS_DEV
 						//检查
 						if (list_pistons.Count == 0)
 						{
-							string_builder__init_info.Append($"<warning> no any piston found in group \"{name_group}\" , ignored , but the charge-twice mode will be disabled\n");
+							string_builder__init_info.Append($"<warning>\nno any piston found in group \"{name_group}\", ignored , but the charge-twice mode will be disabled\n");
 							flag__enable_two_stage_mode = false;
 						}
 						else
@@ -1632,7 +1632,7 @@ namespace AMCCS_DEV
 					//检查
 					if (group__fixators == null)
 					{
-						string_builder__init_info.Append($"<warning> no group found with name \"{name_group}\" , ignored , but the charge-twice mode will be disabled\n");
+						string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\", ignored , but the charge-twice mode will be disabled\n");
 						flag__enable_two_stage_mode = false;
 					}
 					else
@@ -1643,7 +1643,7 @@ namespace AMCCS_DEV
 																 //检查
 						if (list_fixators.Count == 0)
 						{
-							string_builder__init_info.Append($"<warning> no any block found in group \"{name_group}\" , ignored , but the charge-twice mode will be disabled\n");
+							string_builder__init_info.Append($"<warning>\nno any block found in group \"{name_group}\", ignored , but the charge-twice mode will be disabled\n");
 							flag__enable_two_stage_mode = false;
 						}
 						else
@@ -1749,68 +1749,68 @@ namespace AMCCS_DEV
 				switch (status_cannon)
 				{
 					case CannonStatus.NotReady://非就绪状态
+					{
+						//非就绪状态仅接受重载指令(和延迟重载)
+						if (command_cannon == CannonCommand.Reload)//立即重载
 						{
-							//非就绪状态仅接受重载指令(和延迟重载)
-							if (command_cannon == CannonCommand.Reload)//立即重载
-							{
-								//设置为运行状态
-								status_cannon = CannonStatus.Loading;
-								//运行
-								run();
-							}
-						}
-						break;
-					case CannonStatus.Ready://就绪状态
-						{
-							//就绪状态可以接受所有指令
-							if (command_cannon == CannonCommand.Fire)
-							{
-								//开火前检查一次
-								if (!check_cannon_integrality() || !check_cannon_status())
-								{
-									status_cannon = CannonStatus.BrokenDown;
-								}
-								else
-								{
-									//更新上一次射击的火炮索引
-									group.update_last_fire_index(this.index_cannon);
-
-									//设置为运行状态
-									status_cannon = CannonStatus.Loading;
-									++program.count_fire;
-									run();
-								}
-							}
-							else if (command_cannon == CannonCommand.Reload)
-							{
-								//设置为运行状态
-								status_cannon = CannonStatus.Loading;
-								//运行
-								run();
-							}
-						}
-						break;
-					case CannonStatus.Loading://运行状态
-						{
+							//设置为运行状态
+							status_cannon = CannonStatus.Loading;
+							//运行
 							run();
 						}
-						break;
-					case CannonStatus.Pausing://暂停中
+					}
+					break;
+					case CannonStatus.Ready://就绪状态
+					{
+						//就绪状态可以接受所有指令
+						if (command_cannon == CannonCommand.Fire)
 						{
-							--times_delay;
-							if (times_delay <= 0)
+							//开火前检查一次
+							if (!check_cannon_integrality() || !check_cannon_status())
 							{
-								//if (command_cannon == CannonCommand.Reload)
-								//	status_cannon = CannonStatus.Loading;
-								//else
-								//	status_cannon = CannonStatus.NotReady;// 跳转到重载
+								status_cannon = CannonStatus.BrokenDown;
+							}
+							else
+							{
+								//更新上一次射击的火炮索引
+								group.update_last_fire_index(this.index_cannon);
 
-								//继续运行
+								//设置为运行状态
 								status_cannon = CannonStatus.Loading;
-								times_delay = 0;//(冗余)
+								++program.count_fire;
+								run();
 							}
 						}
-						break;
+						else if (command_cannon == CannonCommand.Reload)
+						{
+							//设置为运行状态
+							status_cannon = CannonStatus.Loading;
+							//运行
+							run();
+						}
+					}
+					break;
+					case CannonStatus.Loading://运行状态
+					{
+						run();
+					}
+					break;
+					case CannonStatus.Pausing://暂停中
+					{
+						--times_delay;
+						if (times_delay <= 0)
+						{
+							//if (command_cannon == CannonCommand.Reload)
+							//	status_cannon = CannonStatus.Loading;
+							//else
+							//	status_cannon = CannonStatus.NotReady;// 跳转到重载
+
+							//继续运行
+							status_cannon = CannonStatus.Loading;
+							times_delay = 0;//(冗余)
+						}
+					}
+					break;
 					case CannonStatus.BrokenDown://故障
 					case CannonStatus.Invalid://不可用	  
 						break;//处于故障状态和不可用状态的火炮不执行任何操作
@@ -2011,14 +2011,14 @@ namespace AMCCS_DEV
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
-						{
-							//打开加特林
-							//或
-							//打开切割机(开始切割)
-							foreach (var item in list_detachers)
-								item.Enabled = true;
-						}
-						break;
+					{
+						//打开加特林
+						//或
+						//打开切割机(开始切割)
+						foreach (var item in list_detachers)
+							item.Enabled = true;
+					}
+					break;
 					case DetachMode.Normal://常规分离(合并块)
 						break;
 				}
@@ -2030,20 +2030,20 @@ namespace AMCCS_DEV
 				switch (mode_detach)
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
-						{
-							//射击一次
-							foreach (var item in list_detachers)
-								item.ApplyAction("ShootOnce");
-						}
-						break;
+					{
+						//射击一次
+						foreach (var item in list_detachers)
+							item.ApplyAction("ShootOnce");
+					}
+					break;
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
 					case DetachMode.Normal://常规分离(合并块)
-						{
-							//关闭切割机或合并块
-							foreach (var item in list_detachers)
-								item.Enabled = false;
-						}
-						break;
+					{
+						//关闭切割机或合并块
+						foreach (var item in list_detachers)
+							item.Enabled = false;
+					}
+					break;
 				}
 			}
 
@@ -2054,21 +2054,21 @@ namespace AMCCS_DEV
 				switch (mode_detach)
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
-						{
-							//关闭加特林
-							foreach (var item in list_detachers)
-								item.Enabled = false;
-						}
-						break;
+					{
+						//关闭加特林
+						foreach (var item in list_detachers)
+							item.Enabled = false;
+					}
+					break;
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
 						break;
 					case DetachMode.Normal://常规分离(合并块)
-						{
-							//开启合并块
-							foreach (var item in list_detachers)
-								item.Enabled = true;
-						}
-						break;
+					{
+						//开启合并块
+						foreach (var item in list_detachers)
+							item.Enabled = true;
+					}
+					break;
 				}
 			}
 
@@ -2197,17 +2197,17 @@ namespace AMCCS_DEV
 				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
-						{
-							foreach (var item in list_fixators)
-								(item as IMyFunctionalBlock).Enabled = false;//关闭
-						}
-						break;
+					{
+						foreach (var item in list_fixators)
+							(item as IMyFunctionalBlock).Enabled = false;//关闭
+					}
+					break;
 					case FixMode.MechanicalConnectionBlock:
-						{
-							foreach (var item in list_fixators)
-								(item as IMyMechanicalConnectionBlock).Detach();//分离
-						}
-						break;
+					{
+						foreach (var item in list_fixators)
+							(item as IMyMechanicalConnectionBlock).Detach();//分离
+					}
+					break;
 				}
 				flag__all_fixators_enabled = false;//重置标记
 			}
@@ -2243,20 +2243,20 @@ namespace AMCCS_DEV
 				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
-						{
-							foreach (var item in list_fixators)
-								(item as IMyFunctionalBlock).Enabled = true;//关闭
-						}
-						break;
+					{
+						foreach (var item in list_fixators)
+							(item as IMyFunctionalBlock).Enabled = true;//关闭
+					}
+					break;
 					case FixMode.MechanicalConnectionBlock:
+					{
+						foreach (var item in list_fixators)
 						{
-							foreach (var item in list_fixators)
-							{
-								(item as IMyMechanicalConnectionBlock).Detach();//由于傻逼K社的智障BUG, 必须加上这一行
-								(item as IMyMechanicalConnectionBlock).Attach();//附着
-							}
+							(item as IMyMechanicalConnectionBlock).Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+							(item as IMyMechanicalConnectionBlock).Attach();//附着
 						}
-						break;
+					}
+					break;
 				}
 				flag__all_fixators_enabled = check_fixators_status();//检查状态
 			}
@@ -2338,25 +2338,25 @@ namespace AMCCS_DEV
 				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
+					{
+						var set = new HashSet<IMyCubeGrid>();
+						foreach (var item in list_fixators)
 						{
-							var set = new HashSet<IMyCubeGrid>();
-							foreach (var item in list_fixators)
-							{
-								set.Add(item.CubeGrid);
-								if (!(item as IMyShipMergeBlock).IsConnected)//发现没有成功连接的则返回false
-									return false;
-							}
-							return set.Count == 1;//只有一个相同网格返回true
+							set.Add(item.CubeGrid);
+							if (!(item as IMyShipMergeBlock).IsConnected)//发现没有成功连接的则返回false
+								return false;
 						}
+						return set.Count == 1;//只有一个相同网格返回true
+					}
 					case FixMode.MechanicalConnectionBlock:
+					{
+						foreach (var item in list_fixators)
 						{
-							foreach (var item in list_fixators)
-							{
-								if (!(item as IMyMechanicalConnectionBlock).IsAttached)
-									return false;
-							}
-							return list_fixators.Count != 0;
+							if (!(item as IMyMechanicalConnectionBlock).IsAttached)
+								return false;
 						}
+						return list_fixators.Count != 0;
+					}
 					default:
 						return false;
 				}
@@ -2617,7 +2617,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group__fire_indicators == null)
 				{
-					string_builder__init_info.Append($"<warning> no group found with name \"{name_group}\" , ignored\n");
+					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\", ignored\n");
 				}
 				else
 				{
@@ -2626,7 +2626,7 @@ namespace AMCCS_DEV
 					//检查
 					if (list__fire_indicators.Count == 0)
 					{
-						string_builder__init_info.Append($"<warning> no any weapon found in group \"{name_group}\"\n");
+						string_builder__init_info.Append($"<warning>\nno any weapon found in group \"{name_group}\"\n");
 					}
 				}
 
@@ -2895,7 +2895,7 @@ namespace AMCCS_DEV
 						dict__str_contents[title_crt].Add(line);
 					else
 					{
-						string_builder__error_info.Append($"<error> illegal CD config data: \n{line}\n");
+						string_builder__error_info.Append($"<error>\nillegal CD config data: \n{line}\n");
 						flag__config_error = true; break;
 					}
 				}
@@ -2904,7 +2904,7 @@ namespace AMCCS_DEV
 					if (dict__config_sets.ContainsKey(pair.Key))
 						if (!dict__config_sets[pair.Key].parse_string_data(pair.Value))
 						{
-							string_builder__error_info.Append($"<error> illegal config item in config set: [{pair.Key}]\n{dict__config_sets[pair.Key].string_builder__error_info}\n");
+							string_builder__error_info.Append($"<error>\nillegal config item in config set: [{pair.Key}]\n{dict__config_sets[pair.Key].string_builder__error_info}\n");
 							flag__config_error = true; break;
 						}
 				}
@@ -3009,7 +3009,7 @@ namespace AMCCS_DEV
 					//检查
 					if (pair.Length != 2)
 					{
-						string_builder__error_info.Append($"<error> \"{line}\"(at line {count}) is not a legal config item");
+						string_builder__error_info.Append($"<error>\n\"{line}\"(at line {count}) is not a legal config item");
 						flag__config_error = true;
 						continue;//跳过配置错误的行
 					}
@@ -3031,7 +3031,7 @@ namespace AMCCS_DEV
 					else
 					{
 						//解析失败
-						string_builder__error_info.Append($"<error> \"{str_value__config_item}\"(at line {count}) is not a legal config value");
+						string_builder__error_info.Append($"<error>\n\"{str_value__config_item}\"(at line {count}) is not a legal config value");
 						flag__config_error = true;
 					}
 				}
