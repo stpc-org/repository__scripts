@@ -2,7 +2,7 @@
 * 
 * ### Advanced Multiple Cannon Control System ###
 * ### AMCCS | 高级多联装火炮控制系统脚本 ---- ###
-* ### Version 0.2.1 | by SiriusZ-BOTTLE ----- ###
+* ### Version 0.2.2 | by SiriusZ-BOTTLE ----- ###
 * ### STPC旗下SCP脚本工作室开发 欢迎加入STPC  ###
 * ### STPC主群群号:320461590 我们欢迎新朋友-- ###
 * 
@@ -35,9 +35,9 @@ namespace AMCCS_DEV
 		#region 脚本字段
 
 		//字符串 脚本版本号
-		readonly string str__script_version = "AMCCS V0.2.1 ";
+		readonly string string__script_version = "AMCCS V0.2.2 ";
 		//数组 运行时字符显示
-		readonly string[] array__runtime_chars = new string[]
+		readonly string[] string_array__runtime_patterns = new string[]
 		{
 			"",
 			"",
@@ -52,11 +52,11 @@ namespace AMCCS_DEV
 		};
 
 		//枚举变量 脚本运行模式(默认常规模式)
-		ScriptMode mode_script = ScriptMode.Regular;
+		ScriptMode script_mode = ScriptMode.Regular;
 		//枚举变量 默认组间射击模式
-		FireMode mode_fire__intra_group_default = FireMode.Round;
+		FireMode fire_mode__intra_group_default = FireMode.Round;
 		//枚举变量 默认组内射击模式
-		FireMode mode_fire__inter_group_default = FireMode.Round;
+		FireMode fire_mode__inter_group_default = FireMode.Round;
 
 		//索引 开头编组(本脚本管理的火炮起始编号, 含)
 		int index__cannon_begin = 0;
@@ -66,35 +66,35 @@ namespace AMCCS_DEV
 		int number__cannons_in_group = 0;
 
 		//标签 火炮活塞元件编组
-		string tag__cannon_pistons_group = "cannon_pistons_group_#";
+		string tag__cannon_pistons_group = "group__cannon_pistons__#";
 		//标签 火炮释放元件编组
-		string tag__cannon_releasers_group = "cannon_releasers_group_#";
+		string tag__cannon_releasers_group = "group__cannon_releasers__#";
 		//标签 火炮分离元件编组
-		string tag__cannon_detachers_group = "cannon_detachers_group_#";
+		string tag__cannon_detachers_group = "group__cannon_detachers__#";
 		//标签 火炮弹头编组
-		string tag__cannon_shell_warheads_group = "cannon_shell_warheads_group_#";
+		string tag__cannon_shell_warheads_group = "group__cannon_shell_warheads__#";
 		//标签 火炮 (分离部件网格) 定位器编组
-		string tag__cannon_locator_group = "cannon_locator_group_#";
+		string tag__cannon_locator_group = "group__cannon_locator__#";
 		//标签 火炮炮弹焊接投影仪编组
-		string tag__cannon_shell_projector_group = "cannon_shell_projector_group_#";
+		string tag__cannon_shell_projector_group = "group__cannon_shell_projector__#";
 		//标签 火炮焊接器编组
-		string tag__cannon_shell_welders_group = "cannon_shell_welders_group_#";
+		string tag__cannon_shell_welders_group = "group__cannon_shell_welders__#";
 		//标签 火炮编组射击指示器编组
-		string tag__cannon_fire_indicators_group = "cannon_fire_indicators_group_#";
+		string tag__cannon_fire_indicators_group = "group__cannon_fire_indicators__#";
 		//标签 后缀 火炮状态指示器
-		string tag__postfix_cannon_status_indicator = "_indicator";
+		string tag__postfix_cannon_status_indicator = "__indicator";
 		//标签 接口定时器0
-		string tag__custom_interface_timer_0 = "custom_interface_timer_0_#";
+		string tag__custom_interface_timer_0 = "timer__custom_interface__0__#";
 		//标签 接口定时器1
-		string tag__custom_interface_timer_1 = "custom_interface_timer_1_#";
+		string tag__custom_interface_timer_1 = "timer__custom_interface__1__#";
 		//标签 信息显示器编组
-		string tag__info_displays_group = "info_displays_group";
+		string tag__info_displays_group = "group__information_displayers";
 		//标签 火炮破速限器编组
-		string tag__cannon_speed_limit_breaker_group = "cannon_speed_limit_breaker_group_#";
+		string tag__cannon_speed_limit_breaker_group = "group__cannon_speed_limit_breaker__#";
 		//标签 火炮次要活塞元件编组
-		string tag__cannon_minor_pistons_group = "cannon_minor_pistons_group_#";
+		string tag__cannon_minor_pistons_group = "group__cannon_minor_pistons__#";
 		//标签 火炮固定器编组
-		string tag__cannon_fixators_group = "cannon_fixators_group_#";
+		string tag__cannon_fixators_group = "group__cannon_fixators__#";
 
 		//标记(全局) 是否 自动激活炮弹
 		bool flag__auto_activate_shell = true;
@@ -129,11 +129,11 @@ namespace AMCCS_DEV
 		int period__update_output = 20;
 
 		//时刻 释放
-		int delay_release = 1;
+		int delay__release = 1;
 		//时刻 分离开始
 		int delay__detach_begin = 1;
 		//时刻 分离
-		int delay_detach = 2;
+		int delay__detach = 2;
 		//时刻 分离结束
 		int delay__detach_end = 10;
 		//时刻 尝试激活炮弹
@@ -141,22 +141,22 @@ namespace AMCCS_DEV
 		//时刻 尝试断开炮弹连接
 		int delay__try_disconnect_shell = 10;
 		//时刻 伸展(取值 [2, 5] 内比较合适)
-		int delay__pistons_extend = 3;
+		int delay__pistons_extend = 2;
 		//时刻 固定
-		int delay_attach = 27;
+		int delay__attach = 12;
 		//时刻 收缩
-		int delay__pistons_retract = 85;
+		int delay__pistons_retract = 26;
 		//时刻 定时器 用户自定义接口0
 		int delay__custom_interface_timer_0 = 1;
 		//时刻 定时器 用户自定义接口1
-		int delay__custom_interface_timer_1 = 108;
+		int delay__custom_interface_timer_1 = 60;
 		//时刻 完成装填
-		int delay__done_loading = 108;
+		int delay__done_loading = 60;
 
 		//时刻 第一次重载
 		int delay__first_reload = 30;
 		//时刻 暂停时长
-		int delay_pausing = 20;
+		int delay__pausing = 20;
 
 		//时刻 关闭固定器 (测试的稳定值在 [3, 5] 左右)
 		int delay__disable_fixators = 3;
@@ -186,9 +186,9 @@ namespace AMCCS_DEV
 		//列表 火炮编组
 		List<CannonGroup> list__cannon_groups = new List<CannonGroup>();
 		//列表 显示器
-		List<IMyTextPanel> list_displayers = new List<IMyTextPanel>();
+		List<IMyTextPanel> list__displayer = new List<IMyTextPanel>();
 		//列表 显示器提供者 
-		List<IMyTextSurfaceProvider> list__displayers_providers = new List<IMyTextSurfaceProvider>();
+		List<IMyTextSurfaceProvider> list__displayer_provider = new List<IMyTextSurfaceProvider>();
 		//列表 显示单元
 		List<DisplayUnit> list__display_units = new List<DisplayUnit>();
 
@@ -199,24 +199,24 @@ namespace AMCCS_DEV
 		int delay__before_auto_fire = 5;
 
 		//枚举变量 组间射击模式(默认齐射)
-		FireMode mode_fire__inter_group = FireMode.Round;
+		FireMode fire_mode__inter_group = FireMode.Round;
 		//枚举变量 组内射击模式(默认轮射)
-		FireMode mode_fire__intra_group = FireMode.Round;
+		FireMode fire_mode__intra_group = FireMode.Round;
 
 		//计数 运行命令数
-		long count__run_cmd = 0;
+		long count__cmd_run = 0;
 		//计数 更新
-		long count_update = 0;
+		long count__update = 0;
 		//计数 射击
-		long count_fire = 0;
+		long count__fire = 0;
 		//索引 当前字符图案
 		long index__crt_char_pattern = 0;
 		//次数 距离下一次 字符图案更新
-		long times__before_next_char_pattern_update = 0;
+		long time__before_next_char_pattern_update = 0;
 		//次数 距离下一次 自动射击
-		long times__before_next_auto_fire = 0;
+		long time__before_next_auto_fire = 0;
 		//次数 距离下一次 更新输出
-		long times__before_next_output_update = 0;
+		long time__before_next_output_update = 0;
 
 		//标记(全局) 是否 自动射击
 		bool flag__auto_fire = false;
@@ -226,11 +226,11 @@ namespace AMCCS_DEV
 		//字符串构建器 测试信息
 		StringBuilder string_builder__test_info = new StringBuilder();
 		//脚本配置
-		CustomDataConfig config_script;
+		CustomDataConfig custom_data_config__script;
 		//配置集合 脚本
-		CustomDataConfigSet config_set__script;
+		CustomDataConfigSet custom_data_config_set__script;
 		//配置集合 二段式火炮
-		CustomDataConfigSet config_set__t;
+		CustomDataConfigSet custom_data_config_set__t;
 
 		#endregion
 
@@ -252,24 +252,24 @@ namespace AMCCS_DEV
 		/***************************************************************************************************
 		* 入口函数 Main()
 		***************************************************************************************************/
-		void Main(string str_arg, UpdateType type_update)
+		void Main(string string__arg, UpdateType update_type)
 		{
-			switch (type_update)
+			switch (update_type)
 			{
 				case UpdateType.Terminal:
 				case UpdateType.Trigger:
 				case UpdateType.Script:
 				{
-					run_command(str_arg);
+					run_command(string__arg);
+					break;
 				}
-				break;
 				case UpdateType.Update1:
 				case UpdateType.Update10:
 				case UpdateType.Update100:
 				{
 					update_script();
+					break;
 				}
-				break;
 			}
 		}
 
@@ -280,7 +280,7 @@ namespace AMCCS_DEV
 		//脚本更新
 		void update_script()
 		{
-			if (mode_script == ScriptMode.WeaponSync)
+			if (script_mode == ScriptMode.WeaponSync)
 			{
 				//武器同步模式
 				//检查所有群组
@@ -293,12 +293,12 @@ namespace AMCCS_DEV
 			//自动射击
 			if (flag__auto_fire)
 			{
-				if (times__before_next_auto_fire == 0)
+				if (time__before_next_auto_fire == 0)
 				{
-					times__before_next_auto_fire = period__auto_fire;
+					time__before_next_auto_fire = period__auto_fire;
 					fire();
 				}
-				--times__before_next_auto_fire;
+				--time__before_next_auto_fire;
 			}
 
 			//更新所有火炮
@@ -307,7 +307,7 @@ namespace AMCCS_DEV
 			//信息显示
 			display_info();
 			//更新次数+1
-			++count_update;
+			++count__update;
 			return;
 		}
 
@@ -315,7 +315,7 @@ namespace AMCCS_DEV
 		void run_command(string str_arg)
 		{
 			var cmd = split_string(str_arg);//空格拆分
-			++count__run_cmd;//更新计数
+			++count__cmd_run;//更新计数
 			if (cmd.Count == 0)
 				fire();
 			else if (cmd.Count == 1)
@@ -340,36 +340,36 @@ namespace AMCCS_DEV
 						break;
 					case "toggle_inter_group_fire_mode"://切换组间射击模式
 					{
-						if (mode_fire__inter_group == FireMode.Salvo)
-							mode_fire__inter_group = FireMode.Round;
+						if (fire_mode__inter_group == FireMode.Salvo)
+							fire_mode__inter_group = FireMode.Round;
 						else
-							mode_fire__inter_group = FireMode.Salvo;
+							fire_mode__inter_group = FireMode.Salvo;
+						break;
 					}
-					break;
 					case "toggle_intra_group_fire_mode"://切换组内射击模式
 					{
-						if (mode_fire__intra_group == FireMode.Salvo)
-							mode_fire__intra_group = FireMode.Round;
+						if (fire_mode__intra_group == FireMode.Salvo)
+							fire_mode__intra_group = FireMode.Round;
 						else
-							mode_fire__intra_group = FireMode.Salvo;
+							fire_mode__intra_group = FireMode.Salvo;
 						foreach (var item in list__cannon_groups)
-							item.set_group_fire_mode(mode_fire__intra_group);
+							item.set_group_fire_mode(fire_mode__intra_group);
+						break;
 					}
-					break;
 					case "toggle_auto_fire_onoff":
 					{
 						flag__auto_fire = !flag__auto_fire;
 						//设置自动射击前的延迟
-						times__before_next_auto_fire = delay__before_auto_fire;
+						time__before_next_auto_fire = delay__before_auto_fire;
+						break;
 					}
-					break;
 					case "check_cannons_state":
 					{
 						//更新所有火炮
 						foreach (var item in list__piston_cannons)
 							item.check_once_immediately();
+						break;
 					}
-					break;
 				}
 			}
 			else
@@ -394,40 +394,40 @@ namespace AMCCS_DEV
 		//输出信息 输出信息到编程块终端和LCD
 		void display_info()
 		{
-			if (times__before_next_output_update != 0)
+			if (time__before_next_output_update != 0)
 			{
-				--times__before_next_output_update;
+				--time__before_next_output_update;
 				return;
 			}
 			else
-				times__before_next_output_update = period__update_output;
-			--times__before_next_output_update;
+				time__before_next_output_update = period__update_output;
+			--time__before_next_output_update;
 
 			//清空
 			string_builder__script_info.Clear();
 			string_builder__script_info.Append(
-				"<script> " + str__script_version + array__runtime_chars[index__crt_char_pattern]
-				+ "\n\n<count_update> " + count_update
-				+ "\n<mode_script> " + mode_script
-				+ "\n<mode_fire__inter_group>" + mode_fire__inter_group
-				+ "\n<mode_fire__intra_group>" + mode_fire__intra_group
-				+ "\n<count_trigger> " + count__run_cmd
-				+ "\n<count_fire> " + count_fire
+				"<script> " + string__script_version + string_array__runtime_patterns[index__crt_char_pattern]
+				+ "\n\n<count__update> " + count__update
+				+ "\n<script_mode> " + script_mode
+				+ "\n<fire_mode__inter_group>" + fire_mode__inter_group
+				+ "\n<fire_mode__intra_group>" + fire_mode__intra_group
+				+ "\n<count__cmd_run> " + count__cmd_run
+				+ "\n<count__fire> " + count__fire
 				+ "\n<flag__auto_fire> " + flag__auto_fire
-				+ "\n<count_groups> total " + list__cannon_groups.Count
-				+ "\n<count_cannons> total " + list__piston_cannons.Count
+				+ "\n<count__groups> total " + list__cannon_groups.Count
+				+ "\n<count__cannons> total " + list__piston_cannons.Count
 				);
 			Echo(string_builder__script_info.ToString());
 
 			//更新动态字符图案
-			if (times__before_next_char_pattern_update == 0)
+			if (time__before_next_char_pattern_update == 0)
 			{
-				times__before_next_char_pattern_update = 1;
+				time__before_next_char_pattern_update = 1;
 				++index__crt_char_pattern;
-				if (index__crt_char_pattern >= array__runtime_chars.Length)
+				if (index__crt_char_pattern >= string_array__runtime_patterns.Length)
 					index__crt_char_pattern = 0;
 			}
-			--times__before_next_char_pattern_update;
+			--time__before_next_char_pattern_update;
 
 			foreach (var item in list__cannon_groups)
 			{
@@ -436,86 +436,87 @@ namespace AMCCS_DEV
 
 			//遍历显示单元
 			foreach (var item in list__display_units)
-			{
-				if (item.flag_graphic)
-				{
-					//图形化显示
-
-					if (item.displayer.ContentType != ContentType.SCRIPT)
-						continue;
-
-					switch (item.mode_display)
-					{
-						case DisplayUnit.DisplayMode.General:
-							draw_illegal_lcd_custom_data_hint(item.displayer);
-							break;
-						case DisplayUnit.DisplayMode.SingleCannon:
-							draw_cannons_state(item.displayer, item.index_begin, item.index_begin);
-							break;
-						case DisplayUnit.DisplayMode.MultipleCannon:
-							draw_cannons_state(item.displayer, item.index_begin, item.index_end);
-							break;
-						case DisplayUnit.DisplayMode.SingleGroup:
-							draw_cannons_state(item.displayer,
-								list__cannon_groups[item.index_begin].get__index_begin(),
-								list__cannon_groups[item.index_begin].get__index_end());
-							break;
-						case DisplayUnit.DisplayMode.MultipleGroup:
-						{
-
-						}
-						break;
-						case DisplayUnit.DisplayMode.None:
-							draw_illegal_lcd_custom_data_hint(item.displayer);
-							break;
-					}
-				}
-				else
-				{
-					//非图形化显示
-
-					if (item.displayer.ContentType != ContentType.TEXT_AND_IMAGE)
-						continue;
-
-					switch (item.mode_display)
-					{
-						case DisplayUnit.DisplayMode.General:
-							item.displayer.WriteText(string_builder__script_info);
-							break;
-						case DisplayUnit.DisplayMode.SingleCannon:
-							item.displayer.WriteText(
-								list__piston_cannons[item.index_begin].get_cannon_LCD_info());
-							break;
-						case DisplayUnit.DisplayMode.MultipleCannon:
-						{
-							StringBuilder sb_temp = new StringBuilder();
-							for (var i = item.index_begin; i <= item.index_end; ++i)
-								sb_temp.Append(list__piston_cannons[i].get_cannon_simple_info() + "\n");
-							item.displayer.WriteText(sb_temp);
-						}
-						break;
-						case DisplayUnit.DisplayMode.SingleGroup:
-							item.displayer.WriteText(list__cannon_groups[item.index_begin].get_group_LCD_info());
-							break;
-						case DisplayUnit.DisplayMode.MultipleGroup:
-						{
-							StringBuilder sb_temp = new StringBuilder();
-							for (var i = item.index_begin; i <= item.index_end; ++i)
-								sb_temp.Append(list__cannon_groups[i].get_group_LCD_info() + "\n");
-							item.displayer.WriteText(sb_temp);
-						}
-						break;
-						case DisplayUnit.DisplayMode.None:
-							item.displayer.WriteText("<warning> illegal custom data in this LCD\n<by> script AMCCS");
-							break;
-					}
-				}
-			}
+				renger_displayer(item);
 
 			//显示测试信息
 			//Echo(string_builder__test_info.ToString());
 
 			return;
+		}
+
+		// 渲染显示器内容
+		void renger_displayer(DisplayUnit unit_display)
+		{
+			if (unit_display.flag_graphic)
+			{
+				//图形化显示
+
+				if (unit_display.displayer.ContentType != ContentType.SCRIPT)
+					return;
+
+				switch (unit_display.mode_display)
+				{
+					case DisplayUnit.DisplayMode.Script:
+						draw_illegal_lcd_custom_data_hint(unit_display.displayer);
+						break;
+					case DisplayUnit.DisplayMode.SingleCannon:
+						draw_cannons_state(unit_display.displayer, unit_display.index_begin, unit_display.index_begin);
+						break;
+					case DisplayUnit.DisplayMode.MultipleCannon:
+						draw_cannons_state(unit_display.displayer, unit_display.index_begin, unit_display.index_end);
+						break;
+					case DisplayUnit.DisplayMode.SingleGroup:
+						draw_cannons_state(unit_display.displayer,
+							list__cannon_groups[unit_display.index_begin].get__index_begin(),
+							list__cannon_groups[unit_display.index_begin].get__index_end());
+						break;
+					case DisplayUnit.DisplayMode.MultipleGroup:
+						break;
+					case DisplayUnit.DisplayMode.None:
+						draw_illegal_lcd_custom_data_hint(unit_display.displayer);
+						break;
+				}
+			}
+			else
+			{
+				//非图形化显示
+
+				if (unit_display.displayer.ContentType != ContentType.TEXT_AND_IMAGE)
+					return;
+
+				switch (unit_display.mode_display)
+				{
+					case DisplayUnit.DisplayMode.Script:
+						unit_display.displayer.WriteText(string_builder__script_info);
+						break;
+					case DisplayUnit.DisplayMode.SingleCannon:
+						unit_display.displayer.WriteText(
+							list__piston_cannons[unit_display.index_begin].get_cannon_displayer_info());
+						break;
+					case DisplayUnit.DisplayMode.MultipleCannon:
+					{
+						StringBuilder sb_temp = new StringBuilder();
+						for (var i = unit_display.index_begin; i <= unit_display.index_end; ++i)
+							sb_temp.Append(list__piston_cannons[i].get_cannon_simplified_info() + "\n");
+						unit_display.displayer.WriteText(sb_temp);
+						break;
+					}
+					case DisplayUnit.DisplayMode.SingleGroup:
+						unit_display.displayer.WriteText(list__cannon_groups[unit_display.index_begin].get_group_displayer_info());
+						break;
+					case DisplayUnit.DisplayMode.MultipleGroup:
+					{
+						StringBuilder sb_temp = new StringBuilder();
+						for (var i = unit_display.index_begin; i <= unit_display.index_end; ++i)
+							sb_temp.Append(list__cannon_groups[i].get_group_displayer_info() + "\n");
+						unit_display.displayer.WriteText(sb_temp);
+						break;
+					}
+					case DisplayUnit.DisplayMode.None:
+						unit_display.displayer.WriteText("<warning> illegal custom data in this LCD\n<by> script AMCCS");
+						break;
+				}
+			}
 		}
 
 		//绘制 提示 LCD的自定义数据非法
@@ -655,7 +656,7 @@ namespace AMCCS_DEV
 		//射击控制 (总)
 		void fire(FireMode mode_0 = FireMode.None, FireMode mode_1 = FireMode.None)
 		{
-			var mode_temp = mode_0 == FireMode.None ? mode_fire__inter_group : mode_0;
+			var mode_temp = mode_0 == FireMode.None ? fire_mode__inter_group : mode_0;
 			switch (mode_temp)
 			{
 				case FireMode.Salvo:
@@ -718,12 +719,12 @@ namespace AMCCS_DEV
 			//检查配置合法性
 			if (str_error != null) Echo(str_error);
 
-			config_script.init_config();//初始化配置
-			Echo(config_script.string_builder__error_info.ToString());
+			custom_data_config__script.init_config();//初始化配置
+			Echo(custom_data_config__script.string_builder__error_info.ToString());
 
 			//初始模式
-			mode_fire__intra_group = mode_fire__intra_group_default;
-			mode_fire__inter_group = mode_fire__inter_group_default;
+			fire_mode__intra_group = fire_mode__intra_group_default;
+			fire_mode__inter_group = fire_mode__inter_group_default;
 
 			//计算编组数量
 			int num_groups = 1, num_cannons = index__cannon_end - index__cannon_begin + 1;
@@ -758,9 +759,9 @@ namespace AMCCS_DEV
 			init_script_display_units();
 
 			//变量初始化
-			times__before_next_auto_fire = delay__before_auto_fire;
+			time__before_next_auto_fire = delay__before_auto_fire;
 
-			if (str_error == null && !config_script.flag__config_error)//检查是否出现错误
+			if (str_error == null && !custom_data_config__script.flag__config_error)//检查是否出现错误
 				Runtime.UpdateFrequency = UpdateFrequency.Update1;//设置执行频率 每1帧一次
 		}
 
@@ -789,16 +790,16 @@ namespace AMCCS_DEV
 			if (group_temp != null)
 			{
 				//获取编组中的显示器和显示器提供者
-				group_temp.GetBlocksOfType<IMyTextPanel>(list_displayers);
-				group_temp.GetBlocksOfType<IMyTextSurfaceProvider>(list__displayers_providers);
+				group_temp.GetBlocksOfType<IMyTextPanel>(list__displayer);
+				group_temp.GetBlocksOfType<IMyTextSurfaceProvider>(list__displayer_provider);
 			}
 
 			Dictionary<IMyTextSurface, List<string>> dict = new Dictionary<IMyTextSurface, List<string>>();
 
-			foreach (var item in list_displayers)
+			foreach (var item in list__displayer)
 				dict[item as IMyTextSurface] = split_string(item.CustomData);
 
-			foreach (var item in list__displayers_providers)
+			foreach (var item in list__displayer_provider)
 			{
 				//以换行拆分
 				var list_lines = split_string_2((item as IMyTerminalBlock).CustomData);
@@ -816,7 +817,7 @@ namespace AMCCS_DEV
 				}
 			}
 
-			//遍历显示器
+			// 遍历字典
 			foreach (var pair in dict)
 			{
 				//拆分显示器的用户数据
@@ -827,7 +828,7 @@ namespace AMCCS_DEV
 				DisplayUnit unit = new DisplayUnit(pair.Key);
 
 				if (list_str.Count == 0)
-					unit.mode_display = DisplayUnit.DisplayMode.General;//用户数据为空
+					unit.mode_display = DisplayUnit.DisplayMode.Script;//用户数据为空
 				else
 				{
 					//以 "graphic" 结尾
@@ -841,8 +842,8 @@ namespace AMCCS_DEV
 					switch (list_str[0])
 					{
 						case "graphic":
-						case "general":
-							unit.mode_display = DisplayUnit.DisplayMode.General;
+						case "script":
+							unit.mode_display = DisplayUnit.DisplayMode.Script;
 							break;
 						case "cannon":
 						{
@@ -887,14 +888,19 @@ namespace AMCCS_DEV
 									flag_illegal = true;
 									break;
 								}
+								if (index_begin > index_end)
+								{
+									flag_illegal = true;
+									break;
+								}
 								unit.index_begin = index_begin - index__cannon_begin;
 								unit.index_end = index_end - index__cannon_begin;
 								unit.mode_display = DisplayUnit.DisplayMode.MultipleCannon;
 							}
 							else
 								flag_illegal = true;
+							break;
 						}
-						break;
 						case "group":
 						{
 							if (list_str.Count == 2 + offset)
@@ -938,14 +944,19 @@ namespace AMCCS_DEV
 									flag_illegal = true;
 									break;
 								}
+								if (index_begin > index_end)
+								{
+									flag_illegal = true;
+									break;
+								}
 								unit.index_begin = index_begin;
 								unit.index_end = index_end;
 								unit.mode_display = DisplayUnit.DisplayMode.MultipleGroup;
 							}
 							else
 								flag_illegal = true;
+							break;
 						}
-						break;
 						default:
 							unit.mode_display = DisplayUnit.DisplayMode.None;
 							break;
@@ -974,98 +985,98 @@ namespace AMCCS_DEV
 		void init_script_config()
 		{
 			//脚本配置实例
-			config_script = new CustomDataConfig(Me);
+			custom_data_config__script = new CustomDataConfig(Me);
 
-			config_set__script = new CustomDataConfigSet("SCRIPT CONFIGURATION");
-			config_set__t = new CustomDataConfigSet("TWO STAGE CANNON");
+			custom_data_config_set__script = new CustomDataConfigSet("SCRIPT CONFIGURATION");
+			custom_data_config_set__t = new CustomDataConfigSet("TWO STAGE CANNON");
 
 			//添加配置项
-			config_set__script.add_line("MODE OF THE SCRIPT");
-			config_set__script.add_config_item(nameof(mode_script), () => mode_script, x => { mode_script = (ScriptMode)x; });
+			custom_data_config_set__script.add_line("MODE OF THE SCRIPT");
+			custom_data_config_set__script.add_config_item(nameof(script_mode), () => script_mode, x => { script_mode = (ScriptMode)x; });
 
-			config_set__script.add_line("DEFAULT MODE FOR FIRING");
-			config_set__script.add_config_item(nameof(mode_fire__intra_group_default), () => mode_fire__intra_group_default, x => { mode_fire__intra_group_default = (FireMode)x; });
-			config_set__script.add_config_item(nameof(mode_fire__inter_group_default), () => mode_fire__inter_group_default, x => { mode_fire__inter_group_default = (FireMode)x; });
+			custom_data_config_set__script.add_line("DEFAULT MODE FOR FIRING");
+			custom_data_config_set__script.add_config_item(nameof(fire_mode__intra_group_default), () => fire_mode__intra_group_default, x => { fire_mode__intra_group_default = (FireMode)x; });
+			custom_data_config_set__script.add_config_item(nameof(fire_mode__inter_group_default), () => fire_mode__inter_group_default, x => { fire_mode__inter_group_default = (FireMode)x; });
 
-			config_set__script.add_line("INDEXES OF CANNON AND GROUP SIZE");
-			config_set__script.add_config_item(nameof(index__cannon_begin), () => index__cannon_begin, x => { index__cannon_begin = (int)x; });
-			config_set__script.add_config_item(nameof(index__cannon_end), () => index__cannon_end, x => { index__cannon_end = (int)x; });
-			config_set__script.add_config_item(nameof(number__cannons_in_group), () => number__cannons_in_group, x => { number__cannons_in_group = (int)x; });
+			custom_data_config_set__script.add_line("INDEXES OF CANNON AND GROUP SIZE");
+			custom_data_config_set__script.add_config_item(nameof(index__cannon_begin), () => index__cannon_begin, x => { index__cannon_begin = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(index__cannon_end), () => index__cannon_end, x => { index__cannon_end = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(number__cannons_in_group), () => number__cannons_in_group, x => { number__cannons_in_group = (int)x; });
 
-			config_set__script.add_line("TAG OF THE GROUP NAME");
-			config_set__script.add_config_item(nameof(tag__cannon_pistons_group), () => tag__cannon_pistons_group, x => { tag__cannon_pistons_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_releasers_group), () => tag__cannon_releasers_group, x => { tag__cannon_releasers_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_detachers_group), () => tag__cannon_detachers_group, x => { tag__cannon_detachers_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_shell_warheads_group), () => tag__cannon_shell_warheads_group, x => { tag__cannon_shell_warheads_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_locator_group), () => tag__cannon_locator_group, x => { tag__cannon_locator_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_shell_projector_group), () => tag__cannon_shell_projector_group, x => { tag__cannon_shell_projector_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_shell_welders_group), () => tag__cannon_shell_welders_group, x => { tag__cannon_shell_welders_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_fire_indicators_group), () => tag__cannon_fire_indicators_group, x => { tag__cannon_fire_indicators_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__postfix_cannon_status_indicator), () => tag__postfix_cannon_status_indicator, x => { tag__postfix_cannon_status_indicator = (string)x; });
-			config_set__script.add_config_item(nameof(tag__custom_interface_timer_0), () => tag__custom_interface_timer_0, x => { tag__custom_interface_timer_0 = (string)x; });
-			config_set__script.add_config_item(nameof(tag__custom_interface_timer_1), () => tag__custom_interface_timer_1, x => { tag__custom_interface_timer_1 = (string)x; });
-			config_set__script.add_config_item(nameof(tag__info_displays_group), () => tag__info_displays_group, x => { tag__info_displays_group = (string)x; });
-			config_set__script.add_config_item(nameof(tag__cannon_speed_limit_breaker_group), () => tag__cannon_speed_limit_breaker_group, x => { tag__cannon_speed_limit_breaker_group = (string)x; });
+			custom_data_config_set__script.add_line("TAG OF THE GROUP NAME");
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_pistons_group), () => tag__cannon_pistons_group, x => { tag__cannon_pistons_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_releasers_group), () => tag__cannon_releasers_group, x => { tag__cannon_releasers_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_detachers_group), () => tag__cannon_detachers_group, x => { tag__cannon_detachers_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_warheads_group), () => tag__cannon_shell_warheads_group, x => { tag__cannon_shell_warheads_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_locator_group), () => tag__cannon_locator_group, x => { tag__cannon_locator_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_projector_group), () => tag__cannon_shell_projector_group, x => { tag__cannon_shell_projector_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_welders_group), () => tag__cannon_shell_welders_group, x => { tag__cannon_shell_welders_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_fire_indicators_group), () => tag__cannon_fire_indicators_group, x => { tag__cannon_fire_indicators_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__postfix_cannon_status_indicator), () => tag__postfix_cannon_status_indicator, x => { tag__postfix_cannon_status_indicator = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__custom_interface_timer_0), () => tag__custom_interface_timer_0, x => { tag__custom_interface_timer_0 = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__custom_interface_timer_1), () => tag__custom_interface_timer_1, x => { tag__custom_interface_timer_1 = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__info_displays_group), () => tag__info_displays_group, x => { tag__info_displays_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_speed_limit_breaker_group), () => tag__cannon_speed_limit_breaker_group, x => { tag__cannon_speed_limit_breaker_group = (string)x; });
 
-			config_set__script.add_line("FUNCTIONS SWITCH");
-			config_set__script.add_config_item(nameof(flag__auto_activate_shell), () => flag__auto_activate_shell, x => { flag__auto_activate_shell = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_start_warhead_countdown), () => flag__auto_start_warhead_countdown, x => { flag__auto_start_warhead_countdown = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_toggle_welders_onoff), () => flag__auto_toggle_welders_onoff, x => { flag__auto_toggle_welders_onoff = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_0), () => flag__auto_trigger_custom_interface_timer_0, x => { flag__auto_trigger_custom_interface_timer_0 = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_1), () => flag__auto_trigger_custom_interface_timer_1, x => { flag__auto_trigger_custom_interface_timer_1 = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_check), () => flag__auto_check, x => { flag__auto_check = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__auto_reload), () => flag__auto_reload, x => { flag__auto_reload = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__reload_once_after_script_initialization), () => flag__reload_once_after_script_initialization, x => { flag__reload_once_after_script_initialization = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__enable_two_stage_mode), () => flag__enable_two_stage_mode, x => { flag__enable_two_stage_mode = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__enable_shell_disconnection), () => flag__enable_shell_disconnection, x => { flag__enable_shell_disconnection = (bool)x; });
-			config_set__script.add_config_item(nameof(flag__enable_shell_integrity_check), () => flag__enable_shell_integrity_check, x => { flag__enable_shell_integrity_check = (bool)x; });
+			custom_data_config_set__script.add_line("FUNCTIONS SWITCH");
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_activate_shell), () => flag__auto_activate_shell, x => { flag__auto_activate_shell = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_start_warhead_countdown), () => flag__auto_start_warhead_countdown, x => { flag__auto_start_warhead_countdown = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_toggle_welders_onoff), () => flag__auto_toggle_welders_onoff, x => { flag__auto_toggle_welders_onoff = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_0), () => flag__auto_trigger_custom_interface_timer_0, x => { flag__auto_trigger_custom_interface_timer_0 = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_1), () => flag__auto_trigger_custom_interface_timer_1, x => { flag__auto_trigger_custom_interface_timer_1 = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_check), () => flag__auto_check, x => { flag__auto_check = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_reload), () => flag__auto_reload, x => { flag__auto_reload = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__reload_once_after_script_initialization), () => flag__reload_once_after_script_initialization, x => { flag__reload_once_after_script_initialization = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_two_stage_mode), () => flag__enable_two_stage_mode, x => { flag__enable_two_stage_mode = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_shell_disconnection), () => flag__enable_shell_disconnection, x => { flag__enable_shell_disconnection = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_shell_integrity_check), () => flag__enable_shell_integrity_check, x => { flag__enable_shell_integrity_check = (bool)x; });
 
-			config_set__script.add_line("EXECUTION CYCLE OF SOME FUNCTIONS");
-			config_set__script.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
-			config_set__script.add_config_item(nameof(period__auto_fire), () => period__auto_fire, x => { period__auto_fire = (int)x; });
-			config_set__script.add_config_item(nameof(period__update_output), () => period__update_output, x => { period__update_output = (int)x; });
+			custom_data_config_set__script.add_line("EXECUTION CYCLE OF SOME FUNCTIONS");
+			custom_data_config_set__script.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(period__auto_fire), () => period__auto_fire, x => { period__auto_fire = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(period__update_output), () => period__update_output, x => { period__update_output = (int)x; });
 
-			config_set__script.add_line("DELAY IN EXECUTING CANNON ACTION");
-			config_set__script.add_config_item(nameof(delay_release), () => delay_release, x => { delay_release = (int)x; });
-			config_set__script.add_config_item(nameof(delay__detach_begin), () => delay__detach_begin, x => { delay__detach_begin = (int)x; });
-			config_set__script.add_config_item(nameof(delay_detach), () => delay_detach, x => { delay_detach = (int)x; });
-			config_set__script.add_config_item(nameof(delay__detach_end), () => delay__detach_end, x => { delay__detach_end = (int)x; });
-			config_set__script.add_config_item(nameof(delay__try_activate_shell), () => delay__try_activate_shell, x => { delay__try_activate_shell = (int)x; });
-			config_set__script.add_config_item(nameof(delay__try_disconnect_shell), () => delay__try_disconnect_shell, x => { delay__try_disconnect_shell = (int)x; });
-			config_set__script.add_config_item(nameof(delay__pistons_extend), () => delay__pistons_extend, x => { delay__pistons_extend = (int)x; });
-			config_set__script.add_config_item(nameof(delay_attach), () => delay_attach, x => { delay_attach = (int)x; });
-			config_set__script.add_config_item(nameof(delay__pistons_retract), () => delay__pistons_retract, x => { delay__pistons_retract = (int)x; });
-			config_set__script.add_config_item(nameof(delay__custom_interface_timer_0), () => delay__custom_interface_timer_0, x => { delay__custom_interface_timer_0 = (int)x; });
-			config_set__script.add_config_item(nameof(delay__custom_interface_timer_1), () => delay__custom_interface_timer_1, x => { delay__custom_interface_timer_1 = (int)x; });
-			config_set__script.add_config_item(nameof(delay__done_loading), () => delay__done_loading, x => { delay__done_loading = (int)x; });
+			custom_data_config_set__script.add_line("DELAY IN EXECUTING CANNON ACTION");
+			custom_data_config_set__script.add_config_item(nameof(delay__release), () => delay__release, x => { delay__release = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach_begin), () => delay__detach_begin, x => { delay__detach_begin = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach), () => delay__detach, x => { delay__detach = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach_end), () => delay__detach_end, x => { delay__detach_end = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__try_activate_shell), () => delay__try_activate_shell, x => { delay__try_activate_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__try_disconnect_shell), () => delay__try_disconnect_shell, x => { delay__try_disconnect_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pistons_extend), () => delay__pistons_extend, x => { delay__pistons_extend = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__attach), () => delay__attach, x => { delay__attach = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pistons_retract), () => delay__pistons_retract, x => { delay__pistons_retract = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__custom_interface_timer_0), () => delay__custom_interface_timer_0, x => { delay__custom_interface_timer_0 = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__custom_interface_timer_1), () => delay__custom_interface_timer_1, x => { delay__custom_interface_timer_1 = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__done_loading), () => delay__done_loading, x => { delay__done_loading = (int)x; });
 
-			config_set__script.add_config_item(nameof(delay__first_reload), () => delay__first_reload, x => { delay__first_reload = (int)x; });
-			config_set__script.add_config_item(nameof(delay_pausing), () => delay_pausing, x => { delay_pausing = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__first_reload), () => delay__first_reload, x => { delay__first_reload = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pausing), () => delay__pausing, x => { delay__pausing = (int)x; });
 
-			config_set__script.add_line("ABOUT SHELL ACTIVATION");
-			config_set__script.add_config_item(nameof(distance__warhead_savety_lock), () => distance__warhead_savety_lock, x => { distance__warhead_savety_lock = (double)x; });
-			config_set__script.add_config_item(nameof(number__warhead_countdown_seconds), () => number__warhead_countdown_seconds, x => { number__warhead_countdown_seconds = (double)x; });
-			config_set__script.add_config_item(nameof(time__disconnecting_shell), () => time__disconnecting_shell, x => { time__disconnecting_shell = (int)x; });
-			config_set__script.add_config_item(nameof(count__total_blocks_in_detach_grid), () => count__total_blocks_in_detach_grid, x => { count__total_blocks_in_detach_grid = (int)x; });
-			config_set__script.add_config_item(nameof(times__max_delay), () => times__max_delay, x => { times__max_delay = (int)x; });
+			custom_data_config_set__script.add_line("ABOUT SHELL ACTIVATION");
+			custom_data_config_set__script.add_config_item(nameof(distance__warhead_savety_lock), () => distance__warhead_savety_lock, x => { distance__warhead_savety_lock = (double)x; });
+			custom_data_config_set__script.add_config_item(nameof(number__warhead_countdown_seconds), () => number__warhead_countdown_seconds, x => { number__warhead_countdown_seconds = (double)x; });
+			custom_data_config_set__script.add_config_item(nameof(time__disconnecting_shell), () => time__disconnecting_shell, x => { time__disconnecting_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(count__total_blocks_in_detach_grid), () => count__total_blocks_in_detach_grid, x => { count__total_blocks_in_detach_grid = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(times__max_delay), () => times__max_delay, x => { times__max_delay = (int)x; });
 
 			//config_set__t.add_line("ABOUT CHARGE-TWICE CANNON");
 
-			config_set__t.add_config_item(nameof(tag__cannon_minor_pistons_group), () => tag__cannon_minor_pistons_group, x => { tag__cannon_minor_pistons_group = (string)x; });
-			config_set__t.add_config_item(nameof(tag__cannon_fixators_group), () => tag__cannon_fixators_group, x => { tag__cannon_fixators_group = (string)x; });
+			custom_data_config_set__t.add_config_item(nameof(tag__cannon_minor_pistons_group), () => tag__cannon_minor_pistons_group, x => { tag__cannon_minor_pistons_group = (string)x; });
+			custom_data_config_set__t.add_config_item(nameof(tag__cannon_fixators_group), () => tag__cannon_fixators_group, x => { tag__cannon_fixators_group = (string)x; });
 
-			config_set__t.add_config_item(nameof(flag__synchronized_minor_pistons), () => flag__synchronized_minor_pistons, x => { flag__synchronized_minor_pistons = (bool)x; });
+			custom_data_config_set__t.add_config_item(nameof(flag__synchronized_minor_pistons), () => flag__synchronized_minor_pistons, x => { flag__synchronized_minor_pistons = (bool)x; });
 
-			config_set__t.add_config_item(nameof(delay__disable_fixators), () => delay__disable_fixators, x => { delay__disable_fixators = (int)x; });
-			config_set__t.add_config_item(nameof(delay__minor_pistons_extend), () => delay__minor_pistons_extend, x => { delay__minor_pistons_extend = (int)x; });
-			config_set__t.add_config_item(nameof(delay__enable_fixators), () => delay__enable_fixators, x => { delay__enable_fixators = (int)x; });
-			config_set__t.add_config_item(nameof(delay__minor_pistons_retract), () => delay__minor_pistons_retract, x => { delay__minor_pistons_retract = (int)x; });
+			custom_data_config_set__t.add_config_item(nameof(delay__disable_fixators), () => delay__disable_fixators, x => { delay__disable_fixators = (int)x; });
+			custom_data_config_set__t.add_config_item(nameof(delay__minor_pistons_extend), () => delay__minor_pistons_extend, x => { delay__minor_pistons_extend = (int)x; });
+			custom_data_config_set__t.add_config_item(nameof(delay__enable_fixators), () => delay__enable_fixators, x => { delay__enable_fixators = (int)x; });
+			custom_data_config_set__t.add_config_item(nameof(delay__minor_pistons_retract), () => delay__minor_pistons_retract, x => { delay__minor_pistons_retract = (int)x; });
 
-			config_script.add_config_set(config_set__script);
+			custom_data_config__script.add_config_set(custom_data_config_set__script);
 
-			config_script.parse_custom_data();
+			custom_data_config__script.parse_custom_data();
 			if (flag__enable_two_stage_mode)
-				config_script.add_config_set(config_set__t);
+				custom_data_config__script.add_config_set(custom_data_config_set__t);
 		}
 
 		//检查脚本配置(配置合法返回null, 否则返回错误消息)
@@ -1108,12 +1119,12 @@ namespace AMCCS_DEV
 				return info;
 			}
 
-			if (!check_value(delay_release)
+			if (!check_value(delay__release)
 				|| !check_value(delay__detach_begin)
-				|| !check_value(delay_detach)
+				|| !check_value(delay__detach)
 				|| !check_value(delay__detach_end)
 				|| !check_value(delay__pistons_extend)
-				|| !check_value(delay_attach)
+				|| !check_value(delay__attach)
 				|| !check_value(delay__pistons_retract)
 				|| !check_value(delay__custom_interface_timer_0)
 				|| !check_value(delay__custom_interface_timer_1)
@@ -1158,7 +1169,7 @@ namespace AMCCS_DEV
 			//枚举 显示模式
 			public enum DisplayMode
 			{
-				General,//一般信息显示
+				Script,// 脚本主要信息
 				SingleCannon,//单个火炮信息显示
 				MultipleCannon,//多个火炮信息显示
 				SingleGroup,//单个群组信息显示
@@ -1166,12 +1177,10 @@ namespace AMCCS_DEV
 				None,//不显示内容
 			}
 
-			//LCD显示器
-			//public IMyTextPanel lcd;
 			//显示器
 			public IMyTextSurface displayer;
 
-			public DisplayMode mode_display = DisplayMode.General;
+			public DisplayMode mode_display = DisplayMode.Script;
 
 			//索引 开始 (列表容器中的索引)
 			public int index_begin = -1;
@@ -1183,10 +1192,10 @@ namespace AMCCS_DEV
 			//构造函数
 			public DisplayUnit(IMyTextSurface _display, int _index_begin = -1, int _index_end = -1, bool _flag_graphic = false)
 			{
-				this.displayer = _display;
-				this.flag_graphic = _flag_graphic;
-				this.index_begin = _index_begin;
-				this.index_end = _index_end;
+				displayer = _display;
+				flag_graphic = _flag_graphic;
+				index_begin = _index_begin;
+				index_end = _index_end;
 			}
 		}
 
@@ -1664,13 +1673,13 @@ namespace AMCCS_DEV
 				// 默认情况是装填完成时间-活塞收缩时间, 也就是活塞伸缩时长
 				delay__release_on_reload = program.delay__done_loading - program.delay__pistons_retract;
 				// 如果超过附着时间, 则改为附着时间
-				if (delay__release_on_reload >= program.delay_attach)
-					delay__release_on_reload = program.delay_attach - 1;
+				if (delay__release_on_reload >= program.delay__attach)
+					delay__release_on_reload = program.delay__attach - 1;
 				if (delay__release_on_reload < 1)
 					delay__release_on_reload = 1;
 
 				//大网格机械连接方块需要在附着前一帧释放, 否则无法附着
-				delay__detach_releasers = program.delay_attach - 1;
+				delay__detach_releasers = program.delay__attach - 1;
 				delay__detach_speed_limit_breakers = program.delay__try_disconnect_shell + program.time__disconnecting_shell - 1;
 				delay__detach_fixators = program.delay__enable_fixators - 1;
 
@@ -1758,8 +1767,8 @@ namespace AMCCS_DEV
 							//运行
 							run();
 						}
+						break;
 					}
-					break;
 					case CannonStatus.Ready://就绪状态
 					{
 						//就绪状态可以接受所有指令
@@ -1777,7 +1786,7 @@ namespace AMCCS_DEV
 
 								//设置为运行状态
 								status_cannon = CannonStatus.Loading;
-								++program.count_fire;
+								++program.count__fire;
 								run();
 							}
 						}
@@ -1788,13 +1797,13 @@ namespace AMCCS_DEV
 							//运行
 							run();
 						}
+						break;
 					}
-					break;
 					case CannonStatus.Loading://运行状态
 					{
 						run();
+						break;
 					}
-					break;
 					case CannonStatus.Pausing://暂停中
 					{
 						--times_delay;
@@ -1809,8 +1818,8 @@ namespace AMCCS_DEV
 							status_cannon = CannonStatus.Loading;
 							times_delay = 0;//(冗余)
 						}
+						break;
 					}
-					break;
 					case CannonStatus.BrokenDown://故障
 					case CannonStatus.Invalid://不可用	  
 						break;//处于故障状态和不可用状态的火炮不执行任何操作
@@ -1867,7 +1876,7 @@ namespace AMCCS_DEV
 				//重载过程中在合适的时候释放
 				if (command_cannon == CannonCommand.Reload && count_status == delay__release_on_reload)
 					release();//释放
-				if (count_status == program.delay_release)
+				if (count_status == program.delay__release)
 					if (command_cannon == CannonCommand.Fire)
 					{
 						//if (!check_projector_status())
@@ -1892,7 +1901,7 @@ namespace AMCCS_DEV
 					else if (command_cannon == CannonCommand.Reload)
 					{
 						pistons_extend();//伸展
-						pause_sometime(program.delay_pausing);//强制性暂停时间
+						pause_sometime(program.delay__pausing);//强制性暂停时间
 						++this.count_status;
 						return;//强制退出
 					}
@@ -1901,7 +1910,7 @@ namespace AMCCS_DEV
 				if (count_status == program.delay__detach_begin)
 					if (command_cannon == CannonCommand.Fire)
 						detach_begin();//开始分离
-				if (count_status == program.delay_detach)
+				if (count_status == program.delay__detach)
 					if (command_cannon == CannonCommand.Fire)
 						detach();//分离
 				if (count_status == program.delay__detach_end)
@@ -1915,7 +1924,7 @@ namespace AMCCS_DEV
 				if (command_cannon == CannonCommand.Fire && count_status == program.delay__pistons_extend)
 					pistons_extend();
 				//附着
-				if ((!flag__all_releasers_attached && count_status > program.delay_attach) || count_status == program.delay_attach)
+				if ((!flag__all_releasers_attached && count_status > program.delay__attach) || count_status == program.delay__attach)
 					attach();
 
 				if (count_status == program.delay__pistons_retract)
@@ -1948,7 +1957,7 @@ namespace AMCCS_DEV
 							//伸展次要活塞
 							minor_pistons_extend();
 							// 强制暂停
-							pause_sometime(program.delay_pausing);//强制性暂停时间
+							pause_sometime(program.delay__pausing);//强制性暂停时间
 							++this.count_status;
 							return;//强制退出
 						}
@@ -2017,8 +2026,8 @@ namespace AMCCS_DEV
 						//打开切割机(开始切割)
 						foreach (var item in list_detachers)
 							item.Enabled = true;
+						break;
 					}
-					break;
 					case DetachMode.Normal://常规分离(合并块)
 						break;
 				}
@@ -2034,16 +2043,16 @@ namespace AMCCS_DEV
 						//射击一次
 						foreach (var item in list_detachers)
 							item.ApplyAction("ShootOnce");
+						break;
 					}
-					break;
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
 					case DetachMode.Normal://常规分离(合并块)
 					{
 						//关闭切割机或合并块
 						foreach (var item in list_detachers)
 							item.Enabled = false;
+						break;
 					}
-					break;
 				}
 			}
 
@@ -2058,8 +2067,8 @@ namespace AMCCS_DEV
 						//关闭加特林
 						foreach (var item in list_detachers)
 							item.Enabled = false;
+						break;
 					}
-					break;
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
 						break;
 					case DetachMode.Normal://常规分离(合并块)
@@ -2067,8 +2076,8 @@ namespace AMCCS_DEV
 						//开启合并块
 						foreach (var item in list_detachers)
 							item.Enabled = true;
+						break;
 					}
-					break;
 				}
 			}
 
@@ -2200,14 +2209,14 @@ namespace AMCCS_DEV
 					{
 						foreach (var item in list_fixators)
 							(item as IMyFunctionalBlock).Enabled = false;//关闭
+						break;
 					}
-					break;
 					case FixMode.MechanicalConnectionBlock:
 					{
 						foreach (var item in list_fixators)
 							(item as IMyMechanicalConnectionBlock).Detach();//分离
+						break;
 					}
-					break;
 				}
 				flag__all_fixators_enabled = false;//重置标记
 			}
@@ -2246,8 +2255,8 @@ namespace AMCCS_DEV
 					{
 						foreach (var item in list_fixators)
 							(item as IMyFunctionalBlock).Enabled = true;//关闭
+						break;
 					}
-					break;
 					case FixMode.MechanicalConnectionBlock:
 					{
 						foreach (var item in list_fixators)
@@ -2255,8 +2264,8 @@ namespace AMCCS_DEV
 							(item as IMyMechanicalConnectionBlock).Detach();//由于傻逼K社的智障BUG, 必须加上这一行
 							(item as IMyMechanicalConnectionBlock).Attach();//附着
 						}
+						break;
 					}
-					break;
 				}
 				flag__all_fixators_enabled = check_fixators_status();//检查状态
 			}
@@ -2522,7 +2531,7 @@ namespace AMCCS_DEV
 			}
 
 			//获取火炮LCD显示信息
-			public string get_cannon_LCD_info()
+			public string get_cannon_displayer_info()
 			{
 				return "<cannon> ------------------------------ No." + this.index_cannon
 					+ "\n<status> " + status_cannon.ToString()
@@ -2541,8 +2550,8 @@ namespace AMCCS_DEV
 					+ "\n<flag_ESIC> " + this.flag__enable_shell_integrity_check;
 			}
 
-			//获取火炮简易信息
-			public string get_cannon_simple_info()
+			//获取火炮简化信息
+			public string get_cannon_simplified_info()
 			{
 				return
 					"<cannon> No." + this.index_cannon
@@ -2630,7 +2639,7 @@ namespace AMCCS_DEV
 					}
 				}
 
-				mode_fire = program.mode_fire__intra_group;
+				mode_fire = program.fire_mode__intra_group;
 				return;
 			}
 
@@ -2680,7 +2689,7 @@ namespace AMCCS_DEV
 			//返回有几门火炮进行射击
 			public int fire(FireMode mode = FireMode.None)
 			{
-				if (program.mode_script == ScriptMode.WeaponSync && !flag__fire_indicators_activated)
+				if (program.script_mode == ScriptMode.WeaponSync && !flag__fire_indicators_activated)
 					return 0;
 
 				int count = 0;
@@ -2801,7 +2810,7 @@ namespace AMCCS_DEV
 				return sb.ToString();
 			}
 
-			public string get_group_LCD_info()
+			public string get_group_displayer_info()
 			{
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
@@ -2810,7 +2819,7 @@ namespace AMCCS_DEV
 					+ "\n<mode_fire> " + this.mode_fire
 					+ "\n<cannons> --------------------\n");
 				foreach (var item in list_cannons)
-					sb.Append(item.get_cannon_simple_info() + "\n");
+					sb.Append(item.get_cannon_simplified_info() + "\n");
 				return sb.ToString();
 			}
 

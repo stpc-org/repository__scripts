@@ -343,6 +343,9 @@ namespace AN0FCS_MAIN_DEV
 				else if (flag__enable_elevation_deflection_stabilizer && Math.Abs(vector__rotation_indicator.Y) > Math.Abs(vector__rotation_indicator.X))
 					vector__rotation_indicator.X = vector__rotation_indicator.X * Math.Abs(vector__rotation_indicator.X / vector__rotation_indicator.Y);
 
+
+				Quaternion.CreateFromYawPitchRoll
+				// 通过旋转轴和旋转角度参数的方式创建四元数, 相当于执行以传入向量为轴, 旋转固定角度的操作
 				var quaternion_azimuth = Quaternion.CreateFromAxisAngle(controller_main.WorldMatrix.Down, vector__rotation_indicator.X);
 				Vector3D.Transform(ref vector__global_orientation, ref quaternion_azimuth, out vector__global_orientation);
 				var quaternion_elevation = Quaternion.CreateFromAxisAngle
