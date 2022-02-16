@@ -59,17 +59,7 @@ namespace PTS
 		{
 			Echo("<execute> init");
 
-			group=this.GridTerminalSystem.GetBlockGroupWithName(name_group);
-
-			if(group==null)
-				Echo($"<error> no group found with name: {name_group}");
-			else
-				group.GetBlocksOfType(list_pistons);
-
-			if(list_pistons.Count==0)
-				Echo($"<error> no pistons in group");
-
-			ITerminalProperty p;
+			init_objects();
 
 			Echo("<done> init");
 		}
@@ -114,6 +104,14 @@ namespace PTS
 							}
 						}
 						break;
+						case "regain":
+						case "refresh":
+						case "initialize":
+						case "reacquire":
+						{
+							init_objects();
+						}
+						break;
 
 					}
 				}
@@ -128,9 +126,24 @@ namespace PTS
 			}
 		}
 
+		// 初始化对象
+		void init_objects()
+		{
+			group = this.GridTerminalSystem.GetBlockGroupWithName(name_group);
+
+			if (group == null)
+				Echo($"<error> no group found with name: {name_group}");
+			else
+				group.GetBlocksOfType(list_pistons);
+
+			if (list_pistons.Count == 0)
+				Echo($"<error> no pistons in group");
+		}
+
 		List<string> split_string(string str)
 		{
 			List<string> list = new List<string>(str.Split(new string[] { " " },StringSplitOptions.RemoveEmptyEntries));
+			Echo($"<info> {list.Count} pistons found in group");
 			return list;
 		}
 
