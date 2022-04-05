@@ -14,7 +14,7 @@
 
 //在游戏内使用脚本时确保下面一行代码被注释
 //在开发过程中取消注释来获取完整的代码提示和代码补全
-//#define DEVELOP
+#define DEVELOP
 
 #if DEVELOP
 //用于IDE开发的 using 声明
