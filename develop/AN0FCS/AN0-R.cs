@@ -37,7 +37,7 @@ namespace AN0_RADAR_DEV
         #region 脚本字段
 
         // 字符串 脚本版本号
-        readonly string string__script_version = "AN0-RADAR V0.0.0-BETA ";
+        readonly string string__script_version = "AN0-RADAR V0.0.0-BETA";
 
         // 数组 运行时字符显示
         readonly string[] string_array__runtime_patterns = new string[]
@@ -67,18 +67,25 @@ namespace AN0_RADAR_DEV
 
         // 标记 是否 获取自动炮塔目标
         bool flag__obtain_auto_turret_targets = true;
-        // 标记 是否 当离线 (无用户操控) 时广播目标
-        bool flag__enable_targets_cast_off_line = true;
-        // 标记 是否 开启局部位置广播 (广播时追踪局部位置)
-        bool flag__enable_local_position_broadcast = false;
         // 标记 是否 启用无限投射
-        bool flag__enable_unlimited_raycast = true;
+        bool flag__enable_unlimited_raycast = false;
+        // 标记 是否 当锁定时注册额外对象
+        bool flag__register_extra_targets_when_locking = true;
+        // 标记 是否 当离线 (无用户操控) 时继续锁定目标
+        bool flag__keep_targets_locking_while_offline = true;
+
+        // 与通信有关的设置
+
+        // 标记 是否 当离线 (无用户操控) 时广播目标 (本地)
+        bool flag__enable_targets_localcasting_while_offline = true;
+        // 标记 是否 当离线 (无用户操控) 时共享目标 (网络)
+        bool flag__enable_targets_broadcasting_while_offline = true;
+        // 标记 是否 当离线 (无用户操控) 时接收目标 (网络)
+        bool flag__enable_targets_receiving_while_offline = true;
         // 标记 是否 启用实例间通信
         bool flag__enable_inter_instance_communication = true;
         // 标记 是否 接收扫描坐标
         bool flag__receiving_scanning_coordinate = true;
-        // 标记 是否 当锁定时注册额外对象
-        bool flag__register_extra_targets_when_locking = true;
 
         // 全局目标过滤器 (只针对射线投射目标, 不过滤自动炮塔目标)
 
@@ -110,7 +117,7 @@ namespace AN0_RADAR_DEV
 
         // 距离 最小距离 (低于此距离的目标不会被摄像头锁定)
         double distance__min = 10;
-        // 距离 最大距离 (锁定时运行的最大的投射距离)
+        // 距离 最大距离 (锁定时的最大的投射距离)
         double distance__max = 50000;
         // 距离 扫描距离
         double distance__scan = 2000;
@@ -168,13 +175,17 @@ namespace AN0_RADAR_DEV
         Dictionary<long, Target> dict__targets_of_raycast = new Dictionary<long, Target>();
         // 字典 自动炮台目标
         Dictionary<long, Target> dict__targets_of_auto_turrets = new Dictionary<long, Target>();
-        // 字典 从其它实例中获取的对象
+        // 字典 从其它实例中获取的目标
         Dictionary<long, Target> dict__targets_from_other_instance = new Dictionary<long, Target>();
 
         //列表 射线投射锁定目标
         List<Target> list__targets_of_raycast = new List<Target>();
         //列表 自动炮台目标
         List<Target> list__targets_of_auto_turret = new List<Target>();
+        // 列表 其它实例的目标
+        List<Target> list__targets_from_other_instance = new List<Target>();
+        // 列表 全部目标 (包含上面三个列表中的全部对象)
+        List<Target> list__all_targets = new List<Target>();
 
         //字符串构建器 标题信息
         StringBuilder string_builder__title = new StringBuilder();
@@ -188,6 +199,7 @@ namespace AN0_RADAR_DEV
 
         //对象管理器
         ObjectManager object_manager__script;
+
         // 监听器 实例间的目标数据通信
         IMyBroadcastListener listener__inter_instance_communication;
         // 监听器 扫描坐标
@@ -290,24 +302,80 @@ namespace AN0_RADAR_DEV
             ++count__update;
         }
 
-        // 更新通信数据
+        // 更新通信数据 (发送和接收消息)
         void update_communication_data()
         {
-            if (flag__enable_inter_instance_communication)
-            {
-                MyTuple<long, MyTuple<long>> tuple = new MyTuple<long, MyTuple<long>>();
-                var array = ImmutableArray.Create(tuple, tuple);
+            // 先接收数据再发送
+            receive_data();
+            cast_data();
 
-                MyDetectedEntityInfo entity = new MyDetectedEntityInfo();
-
-                IGC.SendBroadcastMessage(string__internal_communication_channel, entity, TransmissionDistance.TransmissionDistanceMax);
-            }
+            // 若不启用通信也不会接收信息
             while (listener__inter_instance_communication.HasPendingMessage)
             {
                 // 接受消息
-                listener__inter_instance_communication.AcceptMessage();
+                MyIGCMessage message = listener__inter_instance_communication.AcceptMessage();
+
+
                 // 更新计数
                 ++count__message_received;
+            }
+
+            if (true)
+            {
+
+            }
+        }
+
+        //
+        static List<MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>
+            enum_to_tuple_list(IEnumerable<Target> collection)
+        {
+            var list = new List<MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>(collection);
+            // 逐个转换
+            foreach (var item in collection)
+                list.Add(item.to_exchange_info());
+            return list;
+        }
+
+        // 接收信息
+        void receive_data()
+        {
+
+        }
+
+        // 广播信息
+        void cast_data()
+        {
+            // 检查是否启用了脚本实例间通信
+            if (flag__enable_inter_instance_communication)
+            {
+                // 检查用户是否在线, 或开启了离线时共享目标
+                if (flag__enable_targets_localcasting_while_offline)
+                {
+                    // 将所有信息进行本地广播
+
+                    MyTuple<long, MyTuple<long>> tuple = new MyTuple<long, MyTuple<long>>();
+                    //list__tuples;
+
+                    //var array = ImmutableArray.CreateRange
+                    //    <MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>
+                    //    ();
+                
+                }
+
+                if (flag__enable_targets_broadcasting_while_offline)
+                {
+
+                }
+
+
+
+
+                //MyDetectedEntityInfo entity = new MyDetectedEntityInfo();
+
+                //IGC.SendBroadcastMessage(string__internal_communication_channel, entity, TransmissionDistance.TransmissionDistanceMax);
+
+
             }
         }
 
@@ -317,6 +385,18 @@ namespace AN0_RADAR_DEV
             // 重建列表对象
             list__targets_of_raycast = new List<Target>(dict__targets_of_raycast.Values);
             list__targets_of_auto_turret = new List<Target>(dict__targets_of_auto_turrets.Values);
+            list__targets_from_other_instance = new List<Target>(dict__targets_from_other_instance.Values);
+
+            list__all_targets.Clear();
+
+            var dict__all_targets = new Dictionary<long, Target>(dict__targets_of_raycast);
+            // 将剩下两个列表的对象也加入字典
+            foreach (var item in list__targets_of_auto_turret)
+                dict__all_targets.Add(item.id, item);
+            foreach (var item in list__targets_from_other_instance)
+                dict__all_targets.Add(item.id, item);
+
+            //list__all_targets.AddRange();
         }
 
         // 更新摄像头数据
@@ -595,8 +675,8 @@ namespace AN0_RADAR_DEV
             p__a_avl = p__a = p__v = position + _target.velocity * time;
             if (!_target.acc.IsZero())
                 p__a += 0.5 * _target.acc * time * time;
-            if (!_target.acc_average.IsZero())
-                p__a_avl += 0.5 * _target.acc_average * time * time;
+            if (!_target.acc__average.IsZero())
+                p__a_avl += 0.5 * _target.acc__average * time * time;
             // 中点
             p__m = (p__a + p__v) / 2; p__m2 = (position + p__m) / 2;
             MyDetectedEntityInfo? entity_info = null;
@@ -650,7 +730,7 @@ namespace AN0_RADAR_DEV
 
             //遍历显示单元
             foreach (var item in list__display_units)
-                renger_displayer(item);
+                render_displayer(item);
 
             //显示测试信息
             Echo("\n<debug>\n" + string_builder__test_info.ToString());
@@ -661,7 +741,7 @@ namespace AN0_RADAR_DEV
         }
 
         // 渲染显示器内容
-        void renger_displayer(DisplayUnit unit_display)
+        void render_displayer(DisplayUnit unit_display)
         {
             if (unit_display.flag_graphic)
             {
@@ -725,7 +805,7 @@ namespace AN0_RADAR_DEV
             }
         }
 
-        //初始化脚本
+        // 初始化脚本
         void init_script()
         {
             // 初始化脚本配置
@@ -764,7 +844,7 @@ namespace AN0_RADAR_DEV
                 (string__scanning_coordinate_channel);
             listener__inter_instance_communication = IGC.RegisterBroadcastListener
                 (string__internal_communication_channel);
-            // 回调是回调自己
+            // 注: 回调是回调自己
             //listener__inter_instance_communication.SetMessageCallback("terminate");
         }
 
@@ -979,8 +1059,7 @@ namespace AN0_RADAR_DEV
 
             data_config_set__script.add_annotation("function switches of the script (`True` or `False`)");
             data_config_set__script.add_item((new Variant(nameof(flag__obtain_auto_turret_targets), Variant.VType.Bool, () => flag__obtain_auto_turret_targets, x => { flag__obtain_auto_turret_targets = (bool)x; })));
-            data_config_set__script.add_item((new Variant(nameof(flag__enable_targets_cast_off_line), Variant.VType.Bool, () => flag__enable_targets_cast_off_line, x => { flag__enable_targets_cast_off_line = (bool)x; })));
-            data_config_set__script.add_item((new Variant(nameof(flag__enable_local_position_broadcast), Variant.VType.Bool, () => flag__enable_local_position_broadcast, x => { flag__enable_local_position_broadcast = (bool)x; })));
+            data_config_set__script.add_item((new Variant(nameof(flag__enable_targets_localcasting_while_offline), Variant.VType.Bool, () => flag__enable_targets_localcasting_while_offline, x => { flag__enable_targets_localcasting_while_offline = (bool)x; })));
             data_config_set__script.add_item((new Variant(nameof(flag__enable_unlimited_raycast), Variant.VType.Bool, () => flag__enable_unlimited_raycast, x => { flag__enable_unlimited_raycast = (bool)x; })));
             data_config_set__script.add_item((new Variant(nameof(flag__enable_inter_instance_communication), Variant.VType.Bool, () => flag__enable_inter_instance_communication, x => { flag__enable_inter_instance_communication = (bool)x; })));
             data_config_set__script.add_item((new Variant(nameof(flag__receiving_scanning_coordinate), Variant.VType.Bool, () => flag__receiving_scanning_coordinate, x => { flag__receiving_scanning_coordinate = (bool)x; })));
@@ -1044,6 +1123,24 @@ namespace AN0_RADAR_DEV
 
         #region 类型定义
 
+        // 结构体 交换信息
+        // 交换信息封装了用于交换的信息, 内部只有一个经过嵌套的元组对象
+        struct ExchangeInfo
+        {
+            // 信息 <实体信息, 第一次投射碰撞点, 预测位置, 加速度, 平均加速度, <距上次更新已过刻数, 机动性, 距离, 最大加速度>>
+            public MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>> data;
+
+            // 隐式转换
+            public static implicit operator ExchangeInfo
+                (MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>> tuple)
+            => new ExchangeInfo { data = tuple };
+
+            // 隐式转换
+            public static implicit operator
+                MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>(ExchangeInfo info)
+            => info.data;
+        }
+
         //类 显示单元
         class DisplayUnit
         {
@@ -1084,59 +1181,94 @@ namespace AN0_RADAR_DEV
         //类 目标
         class Target
         {
-            public MyDetectedEntityInfo info_entity;// 实体信息
-            public long timestamp { get; private set; }// 时间戳 (上一次更新时的时间戳)
+            public MyDetectedEntityInfo info__entity;// 实体信息
+            public long timestamp { get; private set; }// 时间戳 (上一次更新时的时间戳, 当前脚本的时间戳) (-1 表示对象不可用, -2 表示该目标经由脚本间通信获取)
             public long time__until_last_update { get; private set; }
-            public long level_maneuverability { get; private set; }// 机动性
-            public Vector3D position { get; private set; }// 位置
+            public double level__maneuverability { get; private set; }// 机动性
+            public Vector3D position { get; private set; }// 预测位置 (使用 next_tick() 函数将会更新这个值)
+            public Vector3D? position__first_hit { get; }// 第一次的投射命中点, 若并非由投射获取则此值为 null
             public Vector3D acc { get; private set; }// 瞬时加速度
-            public Vector3D acc_average { get; private set; }// 平均加速度
-            public double acc_maximum { get; private set; } = 0.0;// 最大加速度值
-            public double distance { get; private set; }// 距离
-            public double speed => info_entity.Velocity.Length(); // 速率
-            public long id => info_entity.EntityId;// ID
-            public Vector3D velocity => info_entity.Velocity;// 速度
-            public string name => info_entity.Name;// 名称
-            public Target(long _ts, MyDetectedEntityInfo _i, Vector3D _p) { set(_ts, _i, _p); }//构造函数
+            public Vector3D acc__average { get; private set; }// 平均加速度
+            public double acc__maximum { get; private set; } = 0.0;// 最大加速度值
+            public double distance { get; private set; }// 发现目标时与本机的距离
+
+
+            // 一些快捷属性
+            public double speed => info__entity.Velocity.Length(); // 速率
+            public long id => info__entity.EntityId;// ID
+            public Vector3D velocity => info__entity.Velocity;// 速度
+            public string name => info__entity.Name;// 名称
+
+            // 构造函数 (时间戳, 实体信息, 本机位置)
+            public Target(long _timestamp, MyDetectedEntityInfo _i, Vector3D _p)
+            {
+                // 若存在值
+                if (_i.HitPosition.HasValue)
+                    position__first_hit = _i.HitPosition.Value - _i.Position;
+                set(_timestamp, _i, _p);
+            }
+
+            // 默认构造函数 (构造的对象为空)
             public Target() { timestamp = -1; }
-            public MyTuple<MyDetectedEntityInfo, Vector3D, Vector3D, Vector3D, MyTuple<long, long, double, double>> to_tuple()
-                => MyTuple.Create(info_entity, position, acc, acc_average,
-                    MyTuple.Create(time__until_last_update, level_maneuverability, distance, acc_maximum));
+
+            public Target(MyTuple<MyDetectedEntityInfo, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>> _data)
+            {
+                this.info__entity = _data.Item1;
+                this.timestamp = timestamp;
+                this.time__until_last_update = time__until_last_update;
+                this.level__maneuverability = level__maneuverability;
+                this.position = position;
+                this.acc = acc;
+                this.acc__average = acc__average;
+                this.acc__maximum = acc__maximum;
+                this.distance = distance;
+            }
+
+            // 转为交换信息结构体实例
+            public ExchangeInfo to_exchange_info()
+                => new ExchangeInfo
+                {
+                    data = MyTuple.Create(info__entity, position__first_hit, position, acc, acc__average,
+                    MyTuple.Create(time__until_last_update, level__maneuverability, distance, acc__maximum))
+                };
             public Vector3D next_tick(long ts)
             {
                 ++time__until_last_update;
-                return position = position + info_entity.Velocity * (ts / 1000f);//更新位置
+                return position = position + info__entity.Velocity * (ts / 1000f);//更新位置
             }
-            public void set(long _ts, MyDetectedEntityInfo _i, Vector3D _p)//设置对象 (当前时间戳, 目标信息, 当前脚本所在位置)
+
+            // 设置对象 (当前时间戳, 目标信息, 当前脚本所在位置)
+            public void set(long _ts, MyDetectedEntityInfo _i, Vector3D _p)
             {
                 // 检查是否是新的对象
-                if (info_entity.EntityId == _i.EntityId)
+                if (info__entity.EntityId == _i.EntityId)
                 {
-                    acc = (_ts == timestamp) ? Vector3D.Zero : new Vector3D((_i.Velocity - info_entity.Velocity) * 1000f / (_ts - timestamp));
-                    var t = TK.cal_smooth_avg(acc_average.Length(), acc.Length());
-                    acc_average = acc_average + t * (acc - acc_average);
-                    acc_maximum = Math.Max(acc.Length(), acc_maximum);
+                    acc = (_ts == timestamp) ? Vector3D.Zero : new Vector3D((_i.Velocity - info__entity.Velocity) * 1000f / (_ts - timestamp));
+                    var t = TK.cal_smooth_avg(acc__average.Length(), acc.Length());
+                    acc__average = acc__average + t * (acc - acc__average);
+                    acc__maximum = Math.Max(acc.Length(), acc__maximum);
                 }
-                else
-                    acc = acc_average = Vector3D.Zero;
+                else// 新对象
+                    acc = acc__average = Vector3D.Zero;
                 timestamp = _ts;
                 time__until_last_update = 0;
-                info_entity = _i;
-                position = info_entity.Position;
+                info__entity = _i;
+                position = info__entity.Position;
                 distance = (_p - position).Length();
                 //speed = info_entity.Velocity.Length();
             }
-            public string get_info() => timestamp < 0 ? "<target> invalid\n\n" :
+            public string get_info() => timestamp == -1 ? "<target> invalid\n\n" :
                 $"<target> --------------------"
-                + $"\n<name type> {name} {info_entity.Type}"
+                + $"\n<name type> {name} {info__entity.Type}"
                 + $"\n<id> {id}"
-                + $"\n<timestamp last_update> {timestamp} {(time__until_last_update / 60.0f).ToString("0.00")}"
+                + $"\n<source> {(timestamp == -2 ? "communication" : "localhost")}"
+                + $"\n<timestamp last_update> {(timestamp == -2 ? "None" : timestamp.ToString())} {(time__until_last_update / 60.0f).ToString("0.00")}"
                 + $"\n<distance> {TK.nf(distance)} m"
                 + $"\n<position>\n{position.ToString("0.00E0")}"
                 + $"\n<speed> {TK.nf(speed)} m/s"
-                + $"\n<velocity> {info_entity.Velocity.ToString("0.00")}"
-                + $"\n<acc acc_avg> {TK.nf(acc.Length())} {TK.nf(acc_average.Length())}\n\n";
-            public string get_simplified_info() => timestamp < 0 ? "<target> invalid\n" :
+                + $"\n<velocity> {info__entity.Velocity.ToString("0.00")}"
+                + $"\n<acc acc_avg> {TK.nf(acc.Length())} {TK.nf(acc__average.Length())}\n\n";
+            public string get_simplified_info() => timestamp == -1 ? "<target> invalid\n" :
                 $"<target> {name} {TK.nf(distance)}m {TK.nf(speed)} m/s\n";
             public static string title__simplified_info => "<title> name distance speed";
         }
@@ -1150,29 +1282,31 @@ namespace AN0_RADAR_DEV
         class ObjectManager
         {
 
-            IMyBlockGroup group__script_core = null;//编组 脚本核心方块
+            IMyBlockGroup group__script_core = null;// 编组 脚本核心方块
 
-            //列表 所有方块
+            // 列表 所有方块
             public List<IMyTerminalBlock> list_block { get; private set; } = new List<IMyTerminalBlock>();
-            //列表 全部机械连接方块
+            // 列表 全部机械连接方块
             public List<IMyMechanicalConnectionBlock> list_mcb { get; private set; } = new List<IMyMechanicalConnectionBlock>();
-            //列表 全部控制器
+            // 列表 全部控制器
             public List<IMyShipController> list_controller { get; private set; } = new List<IMyShipController>();
-            //列表 全部摄像头
+            // 列表 全部摄像头
             public List<IMyCameraBlock> list_camera { get; private set; } = new List<IMyCameraBlock>();
-            //列表 全部自动炮塔
+            // 列表 全部自动炮塔
             public List<IMyLargeTurretBase> list__auto_turret { get; private set; } = new List<IMyLargeTurretBase>();
-            //列表 显示器
+            // 列表 显示器
             public List<IMyTextPanel> list_displayer { get; private set; } = new List<IMyTextPanel>();
             // 列表 显示器提供者
             public List<IMyTextSurfaceProvider> list__displayer_provider { get; private set; } = new List<IMyTextSurfaceProvider>();
 
-            //哈希表 自身网格的ID
+            // 哈希表 自身网格的ID
             public HashSet<long> set__self_id { get; private set; } = new HashSet<long>();
+
             //字典 根据网格快速检索节点索引
             Dictionary<IMyCubeGrid, long> dict__grid_index = new Dictionary<IMyCubeGrid, long>();
 
-            Program p = null;
+            readonly Program p = null;
+
             //字符串构建器 初始化信息
             public StringBuilder string_builder__init_info { get; private set; } = new StringBuilder();
 
@@ -1201,7 +1335,7 @@ namespace AN0_RADAR_DEV
                 //获取全部机械连接方块(电机, 铰链, 活塞, 悬架)
                 p.GridTerminalSystem.GetBlocksOfType(list_mcb);
 
-                long index = 0;
+                //long index = 0;
                 //获取全部网格 构建节点列表和节点索引
                 foreach (var item in list_mcb)
                 {
@@ -1236,20 +1370,41 @@ namespace AN0_RADAR_DEV
                 return double.IsNaN(inc) ? l : (inc * l + (1 - inc) * c);
             }
 
-            //全局(朝向)转 yaw pitch
+            // 全局 (朝向) 转 yaw pitch
+            // 注: 摄像头欧拉角顺序: Y -> P
             public static void global_to_yaw_pitch(out float yaw, out float pitch, MatrixD matrix, Vector3D tgt)
             {
-                Vector3D l = matrix.Left, u = matrix.Up, f = matrix.Forward;
-                var p2u = Vector3D.ProjectOnPlane(ref tgt, ref u);//计算投影
-                double num = Vector3D.Dot(p2u, f) / (p2u.Length() * f.Length());
-                if (num > 1.0) num = 1.0; if (num < -1.0) num = -1.0;
-                yaw = (float)(Math.Acos(num) * 180 / Math.PI); if (Vector3D.Dot(l, p2u) > 0) yaw = -yaw;
+                // 获取三个方向向量
+                Vector3D v_l = matrix.Left, v_u = matrix.Up, v_f = matrix.Forward;
+
+                // 计算目标向量在水平面 (法线为 U 向量) 的投影
+                var p2u = Vector3D.ProjectOnPlane(ref tgt, ref v_u);
+
+                // 求在水平面的投影与前向夹角 (conθ = 点积 / 模长积)
+                double num = Vector3D.Dot(p2u, v_f) / (p2u.Length() * v_f.Length());
+                // 去除精度问题
+                if (num > 1.0)
+                    num = 1.0;
+                if (num < -1.0)
+                    num = -1.0;
+                // 计算弧度, 之后转角度
+                yaw = (float)(Math.Acos(num) * 180 / Math.PI);
+                if (Vector3D.Dot(v_l, p2u) > 0)
+                    yaw = -yaw;
+
+                // 求在水平面的投影与目标向量的夹角
                 num = Vector3D.Dot(p2u, tgt) / (p2u.Length() * tgt.Length());
-                if (num > 1.0) num = 1.0; if (num < -1.0) num = -1.0;
-                pitch = (float)(Math.Acos(num) * 180 / Math.PI); if (Vector3D.Dot(u, tgt) < 0) pitch = -pitch;
+                if (num > 1.0)
+                    num = 1.0;
+                if (num < -1.0)
+                    num = -1.0;
+                // 计算弧度, 之后转角度
+                pitch = (float)(Math.Acos(num) * 180 / Math.PI);
+                if (Vector3D.Dot(v_u, tgt) < 0)
+                    pitch = -pitch;
             }
 
-            //检查是否到时间执行某步骤
+            // 检查是否到时间执行某步骤
             public static bool check_time(ref long time, long period)
             {
                 bool res = false;
@@ -1262,7 +1417,7 @@ namespace AN0_RADAR_DEV
                 return res;
             }
 
-            //转字符串(保留2位小数)
+            // 转字符串(保留2位小数)
             public static string nf(double d) => d.ToString("0.00");
         }
 
