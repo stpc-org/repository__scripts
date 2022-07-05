@@ -216,8 +216,8 @@ namespace AN0_RADAR_DEV
         #region 脚本入口
 
         /**************************************************************************
-		* 构造函数 Program()
-		**************************************************************************/
+        * 构造函数 Program()
+        **************************************************************************/
         public Program()
         {
             Echo("<execute> init");
@@ -229,8 +229,8 @@ namespace AN0_RADAR_DEV
         }
 
         /**************************************************************************
-		* 入口函数 Main()
-		**************************************************************************/
+        * 入口函数 Main()
+        **************************************************************************/
         void Main(string string_arg, UpdateType type_update)
         {
             switch (type_update)
@@ -326,11 +326,11 @@ namespace AN0_RADAR_DEV
             }
         }
 
-        //
+        // 转为元组的列表 (用以传输)
         static List<MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>
             enum_to_tuple_list(IEnumerable<Target> collection)
         {
-            var list = new List<MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>(collection);
+            var list = new List<MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>();
             // 逐个转换
             foreach (var item in collection)
                 list.Add(item.to_exchange_info());
@@ -360,7 +360,7 @@ namespace AN0_RADAR_DEV
                     //var array = ImmutableArray.CreateRange
                     //    <MyTuple<MyDetectedEntityInfo, Vector3D?, Vector3D, Vector3D, Vector3D, MyTuple<long, double, double, double>>>
                     //    ();
-                
+
                 }
 
                 if (flag__enable_targets_broadcasting_while_offline)
@@ -525,7 +525,7 @@ namespace AN0_RADAR_DEV
             MyDetectedEntityInfo? entity_info = null;
             cast_at_coordinate(vector__target, out entity_info);
             // 存在值, 并且距离大于下限
-            if (entity_info.HasValue && (position__controller - entity_info.Value.Position).Length > distance__min)
+            if (entity_info.HasValue && (position__controller - entity_info.Value.Position).Length() > distance__min)
                 register_target_in_dict(entity_info.Value);
         }
 
@@ -537,9 +537,9 @@ namespace AN0_RADAR_DEV
             if (object_manager__script.list_camera.Count == 0)
                 return false;
 
-            // 目标实体信息 (
+            // 目标实体信息
             MyDetectedEntityInfo info__entity_temp = new MyDetectedEntityInfo();
-            // 偏航, 俯仰
+            // 偏航, 俯仰 (用于摄像头投射)
             float yaw, pitch;
             // 目标距离
             double distance = 0;
@@ -563,22 +563,28 @@ namespace AN0_RADAR_DEV
                     if (distance > this.distance__max)
                         continue;
                     // 进行投射
-                    info__entity_temp = camera.Raycast(distance, pitch, yaw);
-                    if (object_manager__script.set__self_id.Contains(info__entity_temp.EntityId))
-                        // 扫描到自身网格, 跳过
+                    if (distance < camera.AvailableScanRange)
+                    {
+                        info__entity_temp = camera.Raycast(distance, pitch, yaw);
+                        if (object_manager__script.set__self_id.Contains(info__entity_temp.EntityId))
+                            // 扫描到自身网格, 跳过
+                            continue;
+                        else
+                            // 扫描成功 (无论是否扫描到对象), 结束
+                            break;
+                    }
+                    else
                         continue;
-                    // 计算目标距离摄像头的距离
-                    //distance = (info__entity_temp.Position - camera.WorldMatrix.Translation).Length();
-                    break;
                 }
                 // 设置下一次扫描的冷却时间
                 if (flag__enable_unlimited_raycast)
+                    // 无限投射则每一帧都进行投射
                     time__before_next_scan = 1;
-                else if (info__entity_temp.IsEmpty())
-                    time__before_next_scan = variation__range > 0 ? (long)(distance__scan / variation__range) : long.MaxValue;
                 else
+                {
                     // 当前消耗值 / 摄像头能量增量
                     time__before_next_scan = (long)(distance / variation__range);
+                }
                 // 注:
                 // 除法计算后转为整型可能导致值为0的情况, 之后再次--导致值为-1, 因此入口条件设为<=0
             }
@@ -1270,15 +1276,15 @@ namespace AN0_RADAR_DEV
                 + $"\n<acc acc_avg> {TK.nf(acc.Length())} {TK.nf(acc__average.Length())}\n\n";
             public string get_simplified_info() => timestamp == -1 ? "<target> invalid\n" :
                 $"<target> {name} {TK.nf(distance)}m {TK.nf(speed)} m/s\n";
-            public static string title__simplified_info => "<title> name distance speed";
+            public static string title__simplified_info => "<title> name distance speed ----------\n\n";
         }
 
 
         /**************************************************************************
-		* 类 ObjectsManager
-		* 对象管理器
-		* 实例中包含本脚本所需的全部对象列表
-		**************************************************************************/
+        * 类 ObjectsManager
+        * 对象管理器
+        * 实例中包含本脚本所需的全部对象列表
+        **************************************************************************/
         class ObjectManager
         {
 
@@ -1325,12 +1331,12 @@ namespace AN0_RADAR_DEV
                 group__script_core.GetBlocksOfType(list__auto_turret);
                 group__script_core.GetBlocksOfType(list_displayer);
                 group__script_core.GetBlocksOfType(list__displayer_provider);
+
+                foreach (var i in list_camera)
+                    i.EnableRaycast = true;//启用投射
                 if (p.flag__enable_unlimited_raycast)
                     foreach (var i in list_camera)
-                    {
-                        i.EnableRaycast = true;//启用投射
                         i.Raycast(0d / 0d);//进行一次测试性投射
-                    }
 
                 //获取全部机械连接方块(电机, 铰链, 活塞, 悬架)
                 p.GridTerminalSystem.GetBlocksOfType(list_mcb);
@@ -1426,10 +1432,10 @@ namespace AN0_RADAR_DEV
         #region 配置通用
 
         /**************************************************************************
-		* 类 自定义数据配置
-		* 自定义数据配置(下简称CD配置)使用目标方块的自定义数据来进行脚本配置
-		* 支持动态配置, 注释等, 功能强大
-		**************************************************************************/
+        * 类 自定义数据配置
+        * 自定义数据配置(下简称CD配置)使用目标方块的自定义数据来进行脚本配置
+        * 支持动态配置, 注释等, 功能强大
+        **************************************************************************/
 
         //类 变量
         public class Variant
