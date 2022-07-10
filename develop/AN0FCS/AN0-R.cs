@@ -19,7 +19,6 @@
 using Sandbox.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Text;
 // 游戏库
 using VRage;
@@ -113,7 +112,7 @@ namespace AN0_RADAR_DEV
         //周期 更新自动炮塔对象
         long period__update_targets_of_auto_turrets = 1;
         // 延迟 当丢失目标之后依旧尝试锁定的时间
-        long delay__after_missing = 60;
+        long delay__after_missing = 120;
 
         // 距离 最小距离 (低于此距离的目标不会被摄像头锁定)
         double distance__min = 10;
@@ -121,6 +120,11 @@ namespace AN0_RADAR_DEV
         double distance__max = 50000;
         // 距离 扫描距离
         double distance__scan = 2000;
+
+        // 最低频率, 代表即使在最坏的情况下脚本也以该频率尝试投射
+        double frequency__min = 1;
+        // 对数函数的底数
+        double base__log = Math.E;
 
 
         // 以上是脚本配置字段
@@ -148,19 +152,24 @@ namespace AN0_RADAR_DEV
         long time__before_next_char_pattern_update = 0;
         // 次数 距离下一次 更新输出
         long time__before_next_output_update = 0;
-        // 次数 距离下一次 扫描
-        long time__before_next_scan = 0;
 
-        //时间戳(脚本全局, ms)
+        // 次数 距离下一次 扫描
+        long time__before_next_scanning = 0;
+        // 次数 距离下一次 锁定
+        long time__before_next_locking = 0;
+
+        // 时间戳(脚本全局, ms)
         long timestamp = 0;
-        //时间段
+        // 时间段
         long time_span;
 
-        //增量 每一帧的增量
-        double increment__per_frame = 0;
-        //射程变化量 (持续取平均)
+        // 总射程 对扫描有效的
+        double total_range__effective_for_scanning;
+        // 总射程 对锁定有效的
+        double total_range__effective_for_locking;
+        // 射程变化量 (持续取平滑值)
         double variation__range;
-        //摄像头射程总量(每一帧更新)
+        // 摄像头射程总量(每一帧更新)
         double sum__range;
 
         //当前位置, 该值被视作脚本所在的实体的核心位置
@@ -177,6 +186,11 @@ namespace AN0_RADAR_DEV
         Dictionary<long, Target> dict__targets_of_auto_turrets = new Dictionary<long, Target>();
         // 字典 从其它实例中获取的目标
         Dictionary<long, Target> dict__targets_from_other_instance = new Dictionary<long, Target>();
+
+        // 字典 短时间内的摄像头有效性评价 用于扫描 (1.0 为最大值, 0 为最小值)
+        Dictionary<IMyCameraBlock, double> dict__camera_effectiveness_at_the_time__scanning = new Dictionary<IMyCameraBlock, double>();
+        // 字典 短时间内摄像头的有效性评价 用于锁定 (值域同上)
+        Dictionary<IMyCameraBlock, double> dict__camera_effectiveness_at_the_time__locking = new Dictionary<IMyCameraBlock, double>();
 
         //列表 射线投射锁定目标
         List<Target> list__targets_of_raycast = new List<Target>();
@@ -402,13 +416,29 @@ namespace AN0_RADAR_DEV
         // 更新摄像头数据
         void update_camera_data()
         {
-            var tmp = sum__range;
-            sum__range = 0;
-            // 更新当前帧摄像头总射程
-            foreach (var i in object_manager__script.list_camera)
-                sum__range += i.AvailableScanRange;
-            // 更新射程变化量 (平滑)
-            variation__range = TK.cal_smooth_avg(variation__range, sum__range - tmp);
+            //var tmp = sum__range;
+            //sum__range = 0;
+            //// 更新当前帧摄像头总射程
+            //foreach (var i in object_manager__script.list_camera)
+            //    sum__range += i.AvailableScanRange;
+            //// 更新射程变化量 (平滑)
+            //variation__range = TK.cal_smooth_avg(variation__range, sum__range - tmp);
+
+            // 每一轮, 摄像头的有效性降低一个常数, 无论当轮是否参与投射 (这里设为 0.05, 也就是说20秒之后摄像头不再被视为有效的)
+            // 此处分为两类, 一类用于扫描, 一类用于投射
+
+            total_range__effective_for_scanning = 0;
+            List<IMyCameraBlock> keys = new List<IMyCameraBlock>(dict__camera_effectiveness_at_the_time__scanning.Keys);
+            foreach (var key in keys)
+            {
+                var value = dict__camera_effectiveness_at_the_time__scanning[key];
+                total_range__effective_for_scanning = key.AvailableScanRange * value;
+                value -= 0.0005;
+                if (value < 0)
+                    dict__camera_effectiveness_at_the_time__scanning.Remove(key);
+                else
+                    dict__camera_effectiveness_at_the_time__scanning[key] = value;
+            }
         }
 
         // 更新控制器状态
@@ -456,7 +486,7 @@ namespace AN0_RADAR_DEV
         //执行指令
         void run_command(string string_arg)
         {
-            var cmd = split_string(string_arg);
+            var cmd = TK.split_string(string_arg);
             ++count__cmd_run;//更新计数
             if (cmd.Length == 0)
             {
@@ -504,6 +534,17 @@ namespace AN0_RADAR_DEV
         void toggle_scanning_status()
         {
             flag__scanning = !flag__scanning;
+
+            if (flag__scanning)
+            {
+                List<IMyCameraBlock> keys = new List<IMyCameraBlock>(dict__camera_effectiveness_at_the_time__scanning.Keys);
+                foreach (var key in keys)
+                {
+                    var value = dict__camera_effectiveness_at_the_time__scanning[key];
+                    if (value < 0.5)
+                        dict__camera_effectiveness_at_the_time__scanning[key] = 0.5;
+                }
+            }
         }
 
         // 停止锁定
@@ -517,119 +558,162 @@ namespace AN0_RADAR_DEV
         {
             // 计算当前处于控制中的驾驶舱的正前方的坐标
 
-            // 未找到控制器直接退出
-            if (controller__main == null)
+            // 不处于控制中则退出
+            if (!flag__under_control)
                 return;
             Vector3D position__controller = controller__main.GetPosition();
             Vector3D vector__target = position__controller + controller__main.WorldMatrix.Forward * distance__scan;
-            MyDetectedEntityInfo? entity_info = null;
-            cast_at_coordinate(vector__target, out entity_info);
-            // 存在值, 并且距离大于下限
-            if (entity_info.HasValue && (position__controller - entity_info.Value.Position).Length() > distance__min)
-                register_target_in_dict(entity_info.Value);
-        }
 
-        // 朝指定坐标投射 (返回是否成功探测到实体, 实体数据通过 out 参数传出)
-        bool cast_at_coordinate(Vector3D vector_coordinate, out MyDetectedEntityInfo? entity_info)
-        {
-            entity_info = null;
-            // 检查摄像头数量, 没有摄像头直接退出
-            if (object_manager__script.list_camera.Count == 0)
-                return false;
+            RaycastInfo info = null;
 
-            // 目标实体信息
-            MyDetectedEntityInfo info__entity_temp = new MyDetectedEntityInfo();
-            // 偏航, 俯仰 (用于摄像头投射)
-            float yaw, pitch;
-            // 目标距离
-            double distance = 0;
+            bool flag__success = false;
 
-            if (time__before_next_scan <= 0)
+            if (time__before_next_scanning <= 0)
             {
-                foreach (var camera in object_manager__script.list_camera)
-                {
-                    // 投射朝向
-                    var orientation = vector_coordinate - camera.WorldMatrix.Translation;
+                // 朝坐标进行投射
+                flag__success = cast_at_coordinate(out info, vector__target, dict__camera_effectiveness_at_the_time__scanning);
 
-                    // 全局朝向转 yaw+pitch
-                    TK.global_to_yaw_pitch(out yaw, out pitch, camera.WorldMatrix, orientation);
-
-                    // 检查是否超过了当前摄像头的射界
-                    if (Math.Abs(yaw) > camera.RaycastConeLimit || Math.Abs(pitch) > camera.RaycastConeLimit)
-                        continue;
-                    // 计算投射距离 (当次投射将消耗的能量)
-                    distance = 1.05 * orientation.Length();
-                    // 检查投射距离是否超过上限
-                    if (distance > this.distance__max)
-                        continue;
-                    // 进行投射
-                    if (distance < camera.AvailableScanRange)
-                    {
-                        info__entity_temp = camera.Raycast(distance, pitch, yaw);
-                        if (object_manager__script.set__self_id.Contains(info__entity_temp.EntityId))
-                            // 扫描到自身网格, 跳过
-                            continue;
-                        else
-                            // 扫描成功 (无论是否扫描到对象), 结束
-                            break;
-                    }
-                    else
-                        continue;
-                }
                 // 设置下一次扫描的冷却时间
                 if (flag__enable_unlimited_raycast)
                     // 无限投射则每一帧都进行投射
-                    time__before_next_scan = 1;
+                    time__before_next_scanning = 1;
+                else
+                    // 根据当前能量计算投射频率
+                    time__before_next_scanning = TK.calculate_period(total_range__effective_for_scanning, base__log, frequency__min);
+            }
+            --time__before_next_scanning;
+
+
+            // 存在值, 并且距离大于下限
+            if (flag__success && info.entity_info.HasValue && (position__controller - info.entity_info.Value.Position).Length() > distance__min)
+                register_target_in_dict(info.entity_info.Value);
+        }
+
+        // 朝指定坐标投射
+        // 返回是否成功, 成功意味着不光进行了投射, 投射到了目标, 还意味着通过了筛选器
+        // 返回与投射相关的信息, 包括使用了什么摄像头, 投射距离等等, 若探测到目标, 即使没有通过筛选器依旧会返回
+        bool cast_at_coordinate(out RaycastInfo _info, Vector3D _vector_coordinate, Dictionary<IMyCameraBlock, double> _dict__camera_effectiveness)
+        {
+            // 目标实体信息
+            MyDetectedEntityInfo? entity_info__temp = null;
+            // 偏航, 俯仰 (用于摄像头投射)
+            float yaw, pitch;
+            // 用于投射的摄像头
+            IMyCameraBlock camera__target = null;
+            // 角度, 目标距离
+            double angle = -1, distance = -1;
+            // 遍历全部摄像头
+            foreach (var camera in object_manager__script.list_camera)
+            {
+                // 投射朝向
+                var orientation = _vector_coordinate - camera.WorldMatrix.Translation;
+
+                // 全局朝向转 YP
+                TK.global_to_yaw_pitch(out yaw, out pitch, camera.WorldMatrix, orientation);
+
+                // 检查是否超过了当前摄像头的射界
+                if (Math.Abs(yaw) > camera.RaycastConeLimit || Math.Abs(pitch) > camera.RaycastConeLimit)
+                    continue;
+                // 计算投射距离 (当次投射将消耗的能量) (使用固定的倍率 1.05)
+                distance = 1.05 * orientation.Length();
+
+                // 计算摄像头有效性
+                // 计算夹角
+                double angle__crt = 180 / Math.PI * TK.calculate_angle(camera.WorldMatrix.Forward, orientation);
+
+                // 0度评价为1, 超出或等于射界边界时有效性为0, 不可为负
+                double effectiveness = Math.Max(0, 1 - (angle__crt / camera.RaycastConeLimit));
+
+                // 更新摄像头有效性系数 (使用传入的参数的字典)
+                if (_dict__camera_effectiveness.ContainsKey(camera))
+                    // 字段中存在数据, 则将有效性系数更新为当前值 + 新的有效性, 有效性值域 [0, 1]
+                    _dict__camera_effectiveness[camera] = Math.Min(1, _dict__camera_effectiveness[camera] + effectiveness);
+                else
+                    _dict__camera_effectiveness[camera] = effectiveness;
+
+                // 检查投射距离是否超过上限
+                if (distance > this.distance__max)
+                    continue;
+
+                // 检查摄像头是否有足够能量
+                if (distance < camera.AvailableScanRange)
+                {
+                    // 进行投射
+                    entity_info__temp = camera.Raycast(distance, pitch, yaw);
+                    if (object_manager__script.set__self_id.Contains(entity_info__temp.Value.EntityId))
+                    {
+                        // 扫描到自身网格, 跳过
+                        entity_info__temp = null;
+                        continue;
+                    }
+                    else
+                    {
+                        // 记录投射的信息
+                        camera__target = camera;
+                        angle = angle__crt;
+                        // 扫描成功, 结束 (无论是否扫描到对象)
+                        break;
+                    }
+                }
                 else
                 {
-                    // 当前消耗值 / 摄像头能量增量
-                    time__before_next_scan = (long)(distance / variation__range);
+                    // 能量不足
+                    continue;
                 }
-                // 注:
-                // 除法计算后转为整型可能导致值为0的情况, 之后再次--导致值为-1, 因此入口条件设为<=0
             }
-            --time__before_next_scan;
 
             // 扫描到对象且距离超过阈值
-            if (!info__entity_temp.IsEmpty()/* && distance > distance_min*/)
+            if (entity_info__temp.HasValue && !entity_info__temp.Value.IsEmpty())
             {
-                switch (info__entity_temp.Type)//类型过滤器
+                // 设置返回的信息
+                _info = new RaycastInfo(camera__target, distance, entity_info__temp, angle);
+
+                bool flag__exit = false;
+                switch (entity_info__temp.Value.Type) // 类型过滤器, 若不通过过滤器本函数将会返回 false
                 {
                     case MyDetectedEntityType.CharacterHuman://人类角色
                     case MyDetectedEntityType.CharacterOther://非人角色
-                        if (flag__ignore_players) return false; break;
+                        if (flag__ignore_players) flag__exit = true; break;
                     case MyDetectedEntityType.Missile://小型网格
-                        if (flag__ignore_rockets) return false; break;
+                        if (flag__ignore_rockets) flag__exit = true; break;
                     case MyDetectedEntityType.Meteor://小型网格
-                        if (flag__ignore_meteors) return false; break;
+                        if (flag__ignore_meteors) flag__exit = true; break;
                     case MyDetectedEntityType.SmallGrid://小型网格
-                        if (flag__ignore_small_grids) return false; break;
+                        if (flag__ignore_small_grids) flag__exit = true; break;
                     case MyDetectedEntityType.LargeGrid://大型网格
-                        if (flag__ignore_large_grids) return false; break;
+                        if (flag__ignore_large_grids) flag__exit = true; break;
                     case MyDetectedEntityType.FloatingObject://漂浮物
                     case MyDetectedEntityType.Asteroid://小行星
                     case MyDetectedEntityType.Planet://行星
                     case MyDetectedEntityType.Unknown://未知
                     case MyDetectedEntityType.None://空
-                        return false;//被忽略的类型
+                        flag__exit = true; break;//被忽略的类型
                 }
-                switch (info__entity_temp.Relationship)//关系过滤器
+                switch (entity_info__temp.Value.Relationship)//关系过滤器
                 {
                     case MyRelationsBetweenPlayerAndBlock.Friends://友方
                     case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
-                        if (flag__ignore_the_friendly) return false; break;
+                        if (flag__ignore_the_friendly) flag__exit = true; break;
                     case MyRelationsBetweenPlayerAndBlock.Neutral://中立方
                     case MyRelationsBetweenPlayerAndBlock.NoOwnership://无归属
-                        if (flag__ignore_the_neutral) return false; break;
+                        if (flag__ignore_the_neutral) flag__exit = true; break;
                     case MyRelationsBetweenPlayerAndBlock.Enemies://敌对方
-                        if (flag__ignore_the_enemy) return false; break;
+                        if (flag__ignore_the_enemy) flag__exit = true; break;
                 }
-                // 使用 out 参数传出对象数据
-                entity_info = info__entity_temp;
-                return true;
+
+                if (flag__exit)
+                    // 未通过筛选器, 类型或关系不满足需求
+                    return false;
+                else
+                    return true;
             }
-            // 没有查询到目标传出 null
-            return false;
+            else
+            {
+                // 使用默认构造函数, 将会构造一个不具有有效性的 RaycastInfo 实例
+                _info = new RaycastInfo();
+                // 没有查询到目标
+                return false;
+            }
         }
 
         // 将目标信息在字典中注册
@@ -656,19 +740,22 @@ namespace AN0_RADAR_DEV
             foreach (var id in set__id)
             {
                 Target target = dict__targets_of_raycast[id];
-                if (target.time__until_last_update > delay__after_missing)
-                {
-                    // 超过最大等待时间, 视作丢失
-                    dict__targets_of_raycast.Remove(id);
-                    continue;
-                }
+
                 MyDetectedEntityInfo? entity_info = lock_target(target);
                 if (entity_info.HasValue && (flag__register_extra_targets_when_locking || entity_info.Value.EntityId == target.id))
                     // 注册实体信息
                     register_target_in_dict(entity_info.Value);
                 if (!entity_info.HasValue || entity_info.Value.EntityId != target.id)
+                {
+                    if (target.time__until_last_update > delay__after_missing)
+                    {
+                        // 超过最大等待时间, 视作丢失
+                        dict__targets_of_raycast.Remove(id);
+                        continue;
+                    }
                     // 下一刻
                     target.next_tick(time_span);
+                }
             }
         }
 
@@ -685,14 +772,14 @@ namespace AN0_RADAR_DEV
                 p__a_avl += 0.5 * _target.acc__average * time * time;
             // 中点
             p__m = (p__a + p__v) / 2; p__m2 = (position + p__m) / 2;
-            MyDetectedEntityInfo? entity_info = null;
+            RaycastInfo info;
             // 五点探测锁定
-            bool flag = cast_at_coordinate(p__a, out entity_info)
-                || cast_at_coordinate(p__a_avl, out entity_info)
-                || cast_at_coordinate(p__v, out entity_info)
-                || cast_at_coordinate(p__m, out entity_info)
-                || cast_at_coordinate(p__m2, out entity_info);
-            return entity_info;
+            bool flag = cast_at_coordinate(out info, p__a, dict__camera_effectiveness_at_the_time__locking)
+                || cast_at_coordinate(out info, p__a_avl, dict__camera_effectiveness_at_the_time__locking)
+                || cast_at_coordinate(out info, p__v, dict__camera_effectiveness_at_the_time__locking)
+                || cast_at_coordinate(out info, p__m, dict__camera_effectiveness_at_the_time__locking)
+                || cast_at_coordinate(out info, p__m2, dict__camera_effectiveness_at_the_time__locking);
+            return info.entity_info;
         }
 
         //输出信息 输出信息到编程块终端和LCD
@@ -713,6 +800,10 @@ namespace AN0_RADAR_DEV
                 + $"\n<timestamp timespan>  {timestamp} {time_span}"
                 + $"\n<flag__under_control> {flag__under_control}"
                 + $"\n<flag_scanning> {flag__scanning}"
+                + $"\n<total_range__effective_for_scanning> {total_range__effective_for_scanning.ToString("0.00")}"
+                + $"\n<total_range__effective_for_locking> {total_range__effective_for_locking.ToString("0.00")}"
+                + $"\n<time__before_next_scanning> {time__before_next_scanning}"
+                + $"\n<time__before_next_locking> {time__before_next_locking}"
                 + $"\n<count__targets_of_auto_turrets> {dict__targets_of_auto_turrets.Keys.Count}"
                 + $"\n<count__targets_of_raycast>  {dict__targets_of_raycast.Count}"
                 + $"\n<vector__scanning_coordinate>\n    {vector__scanning_coordinate.ToString("0.00")}"
@@ -833,9 +924,6 @@ namespace AN0_RADAR_DEV
             // 初始化通信
             init_communication();
 
-            if (object_manager__script.list_camera.Count > 0)//计算最速扫描周期
-                increment__per_frame = object_manager__script.list_camera.Count * 2000.0 / 60 / 4;
-
             // 检查是否出现错误
             if (str_error == null && !data_config__script.flag__config_error)
                 // 设置执行频率
@@ -854,27 +942,27 @@ namespace AN0_RADAR_DEV
             //listener__inter_instance_communication.SetMessageCallback("terminate");
         }
 
-        //初始化脚本显示单元
+        // 初始化脚本显示单元
         void init_script_display_units()
         {
             Dictionary<IMyTextSurface, List<string>> dict = new Dictionary<IMyTextSurface, List<string>>();
 
             foreach (var item in object_manager__script.list_displayer)
-                dict[item as IMyTextSurface] = new List<string>(split_string(item.CustomData));
+                dict[item as IMyTextSurface] = new List<string>(TK.split_string(item.CustomData));
 
             foreach (var item in object_manager__script.list__displayer_provider)
             {
-                //以换行拆分
-                var list_lines = new List<string>(split_string_2((item as IMyTerminalBlock).CustomData));
+                // 以换行拆分
+                var list_lines = new List<string>(TK.split_string_2((item as IMyTerminalBlock).CustomData));
 
                 foreach (var line in list_lines)
                 {
-                    //拆分行
-                    var array_str = new List<string>(split_string(line));
+                    // 拆分行
+                    var array_str = new List<string>(TK.split_string(line));
                     int index = 0;
 
                     if ((!int.TryParse(array_str[0], out index)) || index >= item.SurfaceCount || index < 0)
-                        continue;//解析失败或者索引越界, 跳过
+                        continue; // 解析失败或者索引越界, 跳过
                     array_str.RemoveAt(0);
                     dict[item.GetSurface(index)] = array_str;
                 }
@@ -1094,6 +1182,9 @@ namespace AN0_RADAR_DEV
             data_config_set__script.add_item(new Variant(nameof(distance__max), Variant.VType.Float, () => distance__max, x => { distance__max = (double)x; }));
             data_config_set__script.add_item(new Variant(nameof(distance__scan), Variant.VType.Float, () => distance__scan, x => { distance__scan = (double)x; }));
 
+            data_config_set__script.add_item(new Variant(nameof(frequency__min), Variant.VType.Float, () => frequency__min, x => { frequency__min = (double)x; }));
+            data_config_set__script.add_item(new Variant(nameof(base__log), Variant.VType.Float, () => base__log, x => { base__log = (double)x; }));
+
             // 添加配置集合
             data_config__script.add_config_set(data_config_set__script);
 
@@ -1109,21 +1200,10 @@ namespace AN0_RADAR_DEV
         {
             if (name__script_core_group.Length == 0)
                 return "<error_config> key tag of group name is empty";
-            if (!check_value(period__auto_check)
-                || !check_value(period__update_output))
+            if (!TK.check_value(period__auto_check) || !TK.check_value(period__update_output))
                 return "<error_config> period cannot be less than 1 or more than 1000";
-
             return null;
         }
-
-
-        //拆分字符串
-        static string[] split_string(string str) => str.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-
-        static string[] split_string_2(string str) => str.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
-
-        //检查数值
-        static bool check_value(long value) => value > 0 && value < 1001;
 
         #endregion
 
@@ -1279,6 +1359,83 @@ namespace AN0_RADAR_DEV
             public static string title__simplified_info => "<title> name distance speed ----------\n\n";
         }
 
+        // 投射信息, 不要用结构体, 会变得不幸
+        class RaycastInfo
+        {
+            // 摄像头 施放投射的摄像头
+            public IMyCameraBlock camera { get; private set; }
+            // 投射距离
+            public double distance { get; private set; }
+            // 扫描到的对象信息
+            public MyDetectedEntityInfo? entity_info { get; private set; }
+            // 投射角度差
+            public double angle { get; private set; }
+
+            // 默认构造函数, 将构造一个不具有有效性的实例
+            public RaycastInfo()
+            {
+                camera = null;
+                distance = angle = -1;
+                entity_info = null;
+            }
+
+            public RaycastInfo(IMyCameraBlock _camera, double _distance, MyDetectedEntityInfo? _entity_info, double _angle)
+            {
+                this.camera = _camera;
+                this.distance = _distance;
+                this.entity_info = _entity_info;
+                this.angle = _angle;
+            }
+        }
+
+        // 摄像头评估信息
+        class CameraEvaluationInformation
+        {
+
+            /**
+             * 分配策略 (时间复杂度最高不可超过 O(n))
+             * 首先, 不可能每一帧都对摄像头进行排序, 当摄像头数量过多时开销过大
+             * 采样折中方案, 当一个摄像头投射之后, 记录其优先级, 并将优先级重置为 0
+             * 下一次选择优先级大于上一次选择的摄像头的优先级 60% 的摄像头
+             * (设置为 60% 或者更低的值是为了放宽限制, 尽量避免避免所有摄像头都无法满足需求, 
+             * 同时因为投射过的摄像头优先级被置为0, 因此不太可能仍然选择上一次的摄像头)
+             * 若找不到则选择一个能投射的摄像头, 顺序循环时发现可以投射的摄像头时先不进行投射
+             * 判断其优先级是否足够, 若足够则直接进行投射, 否则继续查找下一个
+             * 若找完一圈都没有发现优先级足够高的摄像头则选择之前记录的摄像头进行投射
+             * 
+             */
+            // 摄像头
+            public IMyCameraBlock camera { get; private set; }
+            // 有效性, 有效性是指对于投射目标而言, 摄像头可能处于射界内的可能性的评估
+            public double effectiveness { get; set; }
+            // 优先级, 当一个摄像头被使用之后其优先级会降低
+            public double priority { get; set; }
+
+            public CameraEvaluationInformation(IMyCameraBlock _camera)
+            {
+                this.camera = camera;
+                // 初始时将摄像头的有效性视为 0.5
+                effectiveness = 0.5;
+                // 优先级初始均为 1
+                priority = 1;
+            }
+
+            // 更新
+            public void update()
+            {
+                // 有效性将线性减少
+                effectiveness -= 0.001;
+                // 优先级的增长速度与有效性和摄像头的能量有关, 其中与有效性关系较大, 与能量关系较低
+                priority += effectiveness * (0.01 + camera.AvailableScanRange / 100000);
+            }
+            // 施放投射, 传入投射夹角
+            public void cast(double _angle)
+            {
+                // 进行一次投射之后优先级会降低, 以尽可能降低其被调用的概率
+                priority = 0;
+            }
+
+        }
 
         /**************************************************************************
         * 类 ObjectsManager
@@ -1287,8 +1444,8 @@ namespace AN0_RADAR_DEV
         **************************************************************************/
         class ObjectManager
         {
-
-            IMyBlockGroup group__script_core = null;// 编组 脚本核心方块
+            // 编组 脚本核心方块
+            private IMyBlockGroup group__script_core = null;
 
             // 列表 所有方块
             public List<IMyTerminalBlock> list_block { get; private set; } = new List<IMyTerminalBlock>();
@@ -1309,9 +1466,10 @@ namespace AN0_RADAR_DEV
             public HashSet<long> set__self_id { get; private set; } = new HashSet<long>();
 
             //字典 根据网格快速检索节点索引
-            Dictionary<IMyCubeGrid, long> dict__grid_index = new Dictionary<IMyCubeGrid, long>();
+            private Dictionary<IMyCubeGrid, long> dict__grid_index = new Dictionary<IMyCubeGrid, long>();
 
-            readonly Program p = null;
+            // 脚本实例
+            private readonly Program p = null;
 
             //字符串构建器 初始化信息
             public StringBuilder string_builder__init_info { get; private set; } = new StringBuilder();
@@ -1425,6 +1583,22 @@ namespace AN0_RADAR_DEV
 
             // 转字符串(保留2位小数)
             public static string nf(double d) => d.ToString("0.00");
+
+            // 计算周期 (为了防止底数过大会将能量除以1000之后再参与计算) (周期与能量的对数呈负相关)
+            public static long calculate_period(double _energe, double _base__log, double _frequency__min)
+                => (long)(60.0 / (Math.Log(_energe / 1000 + 1, _base__log) + _frequency__min));
+
+            //检查数值
+            public static bool check_value(long value) => value > 0 && value < 1001;
+
+            // 计算向量夹角 (弧度制)
+            public static double calculate_angle(Vector3D vec__0, Vector3D vec__1)
+                => Math.Acos(Vector3D.Dot(vec__0, vec__1) / vec__0.Length() / vec__1.Length());
+
+            //拆分字符串
+            public static string[] split_string(string str) => str.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+
+            public static string[] split_string_2(string str) => str.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
         }
 
         #endregion

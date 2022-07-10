@@ -372,20 +372,35 @@ namespace AMCCS_DEV
 					}
 				}
 			}
-			else
+			else if (cmd.Count == 2)
 			{
-				int index_group = 0;
-				int.TryParse(cmd[1], out index_group);
+				int index = 0;
+				int.TryParse(cmd[1], out index);
 				switch (cmd[0])//检查命令
 				{
-					case "fire":
-						fire_specific_group(index_group);
+					case "fire_cannon":
+						fire_specific_cannon(index);
 						break;
-					case "fire_S":
-						fire_specific_group(index_group, FireMode.Salvo);
+					case "fire_group":
+						fire_specific_group(index);
 						break;
-					case "fire_R":
-						fire_specific_group(index_group, FireMode.Round);
+					case "fire_group_S":
+						fire_specific_group(index, FireMode.Salvo);
+						break;
+					case "fire_group_R":
+						fire_specific_group(index, FireMode.Round);
+						break;
+				}
+			}
+			else if (cmd.Count == 3)
+			{
+				int index__0 = 0, index__1;
+				int.TryParse(cmd[1], out index__0);
+				int.TryParse(cmd[2], out index__1);
+				switch (cmd[0])//检查命令
+				{
+					case "set_group_phase":
+						set_group_phase(index__0, index__1);
 						break;
 				}
 			}
@@ -603,6 +618,7 @@ namespace AMCCS_DEV
 
 			for (int index = index_begin; index <= index_end; ++index)
 			{
+				var cannon = list__piston_cannons[index];
 				MySprite element_bar = new MySprite()
 				{
 					Type = SpriteType.TEXTURE,
@@ -614,7 +630,7 @@ namespace AMCCS_DEV
 					Alignment = TextAlignment.LEFT,
 				};
 				//根据状态调整颜色
-				switch (list__piston_cannons[index].status_cannon)
+				switch (cannon.status_cannon)
 				{
 					case PistonCannon.CannonStatus.Ready://就绪
 						element_bar.Color = Color.Green;//绿色
@@ -637,7 +653,7 @@ namespace AMCCS_DEV
 					Type = SpriteType.TEXT,
 					Data = "#" + (index + index__cannon_begin),
 					Position = offset_no,
-					Color = Color.White,
+					Color = cannon.flag__enabled ? Color.White : Color.Yellow,
 					Alignment = TextAlignment.LEFT,
 					FontId = "White",
 					//RotationOrScale=2.5f,//固定大小
@@ -704,11 +720,30 @@ namespace AMCCS_DEV
 			return;
 		}
 
-		//特定编组射击
-		void fire_specific_group(int index_group = 0, FireMode mode = FireMode.None)
+		// 特定编组射击
+		void fire_specific_group(int _index__group = 0, FireMode _mode = FireMode.None)
 		{
-			if (index_group > -1 && index_group < list__cannon_groups.Count)
-				list__cannon_groups[index_group].fire(mode);
+			if (_index__group > -1 && _index__group < list__cannon_groups.Count)
+				list__cannon_groups[_index__group].fire(_mode);
+		}
+
+		// 设置编组相位
+		void set_group_phase(int _index__group, int _phase)
+		{
+			if (_index__group > -1 && _index__group < list__cannon_groups.Count)
+				list__cannon_groups[_index__group].set_phase(_phase);
+		}
+
+		// 射击特定编号的火炮 (前提是其处于就绪状态)
+		void fire_specific_cannon(int _index__cannon = 0)
+		{
+			if (_index__cannon >= index__cannon_begin || _index__cannon <= index__cannon_end)
+			{
+				var cannon = list__piston_cannons[_index__cannon - this.index__cannon_begin];
+				if (cannon.status_cannon == PistonCannon.CannonStatus.Ready)
+					//设置射击命令
+					cannon.set_command(PistonCannon.CannonCommand.Fire);
+			}
 		}
 
 		//初始化脚本
@@ -1307,6 +1342,9 @@ namespace AMCCS_DEV
 			//网格 上一个炮弹的网格
 			IMyCubeGrid grid__previous_shell;
 
+			// 是否启用 (默认为真)
+			public bool flag__enabled { get; private set; } = true;
+
 			//索引 活塞炮的编号
 			public int index_cannon { get; private set; } = -1;
 
@@ -1867,6 +1905,10 @@ namespace AMCCS_DEV
 
 			//设置立刻执行检查
 			public void check_once_immediately() => times__before_next_check = 0;
+
+			// 设置是否启用
+			public void set_enabled(bool _flag__enabled = true)
+				=> this.flag__enabled = _flag__enabled;
 
 			//内部动作执行函数
 			private void run()
@@ -2580,8 +2622,8 @@ namespace AMCCS_DEV
 			//编组 射击指示器
 			IMyBlockGroup group__fire_indicators;
 
-			//列表 火炮
-			List<PistonCannon> list_cannons = new List<PistonCannon>();
+			//列表 火炮 (编组所管理的)
+			List<PistonCannon> list__cannons = new List<PistonCannon>();
 
 			//列表 射击指示器元件
 			List<IMyUserControllableGun> list__fire_indicators = new List<IMyUserControllableGun>();
@@ -2591,19 +2633,22 @@ namespace AMCCS_DEV
 
 			int index_group = -1;
 
-			//索引 上一次射击(的火炮)(List容器中的索引)
+			//索引 上一次射击 (的火炮) (本编组的 List 容器中的索引) (注, 是本地容器的索引)
 			int index__cannon_last_fire = -1;
-			//索引 火炮起始(本编组管理的火炮起始编号, 含)
+			//索引 火炮起始 (本编组管理的火炮的起始编号, 含) (注, 是火炮的全局编号)
 			int index__cannon_begin = -1;
-			//索引 火炮末尾(本编组管理的火炮末尾编号, 含)
+			//索引 火炮末尾 (本编组管理的火炮的末尾编号, 含)
 			int index__cannon_end = -1;
-			//索引 火炮起始(List容器中的索引, 含)
+			//索引 火炮起始 (脚本字段中的火炮 List 容器中的索引, 含) (注, 是全局容器的索引)
 			int index_begin = -1;
-			//索引 火炮末尾(List容器中的索引, 含)
+			//索引 火炮末尾 (脚本字段中的火炮 List 容器中的索引, 含)
 			int index_end = -1;
 
 			//标记 是否 射击指示器处于激活状态
 			bool flag__fire_indicators_activated = false;
+
+			// 是否启用 (默认为真)
+			public bool flag__enabled { get; private set; } = true;
 
 			//编程块的this指针
 			Program program;
@@ -2652,16 +2697,16 @@ namespace AMCCS_DEV
 			public void add_cannon(PistonCannon cannon)
 			{
 				//设置起始索引
-				if (list_cannons.Count == 0)
+				if (list__cannons.Count == 0)
 				{
 					index__cannon_begin = cannon.index_cannon;
 					index_begin = index__cannon_begin - program.index__cannon_begin;
 				}
 				//添加到列表
-				list_cannons.Add(cannon);
-				index__cannon_last_fire = list_cannons.Count - 1;
+				list__cannons.Add(cannon);
+				index__cannon_last_fire = list__cannons.Count - 1;
 				//更新末尾索引
-				index__cannon_end = list_cannons[list_cannons.Count - 1].index_cannon;
+				index__cannon_end = list__cannons[list__cannons.Count - 1].index_cannon;
 				index_end = index__cannon_end - program.index__cannon_begin;
 			}
 
@@ -2683,6 +2728,14 @@ namespace AMCCS_DEV
 			public int get__index_end()
 			{
 				return index_end;
+			}
+
+			// 设置相位 (上一次射击的火炮)
+			// [in] 上一次射击的火炮的局部偏移量 (注, 可以传入-1, 与传入编组管理的火炮数-1 效果相同)
+			public void set_phase(int _phase)
+			{
+				if (_phase >= -1 && _phase < list__cannons.Count)
+					this.index__cannon_last_fire = _phase;
 			}
 
 			//编组射击
@@ -2715,8 +2768,8 @@ namespace AMCCS_DEV
 			{
 				int count = 0;
 
-				//逐个遍历寻找所有处于 Ready 状态的火炮
-				foreach (var item in list_cannons)
+				// 逐个遍历寻找所有处于 Ready 状态的火炮
+				foreach (var item in list__cannons)
 				{
 					//检查状态
 					if (item.status_cannon == PistonCannon.CannonStatus.Ready)
@@ -2738,33 +2791,48 @@ namespace AMCCS_DEV
 				//从上一次开炮的位置往后查找到末尾
 				int index__last_next = index__cannon_last_fire + 1;
 
-				for (i = index__last_next; i < list_cannons.Count; ++i)
+				for (i = index__last_next; i < list__cannons.Count; ++i)
 				{
 					//检查状态
-					if (list_cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
+					if (list__cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
 					{
 						//设置射击命令
-						list_cannons[i].set_command(PistonCannon.CannonCommand.Fire);
+						list__cannons[i].set_command(PistonCannon.CannonCommand.Fire);
 						return 1;
 					}
 				}
 
 				//仍然没有找到
-				if (i == list_cannons.Count)
+				if (i == list__cannons.Count)
 				{
 					//从开头重新查找到上次开炮的位置
 					for (i = 0; i < index__last_next; ++i)
 					{
 						//检查状态
-						if (list_cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
+						if (list__cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
 						{
 							//设置射击命令
-							list_cannons[i].set_command(PistonCannon.CannonCommand.Fire);
+							list__cannons[i].set_command(PistonCannon.CannonCommand.Fire);
 							return 1;
 						}
 					}
 				}
 				return 0;
+			}
+
+			public void enable_all_cannons_in_group()
+			{
+				flag__enabled = true;
+				foreach (var cannon in list__cannons)
+					cannon.set_enabled(true);
+			}
+
+			// 禁用编组内的所有火炮
+			public void disable_all_cannons_in_group()
+			{
+				flag__enabled = false;
+				foreach (var cannon in list__cannons)
+					cannon.set_enabled(false);
 			}
 
 			//检车并更新武器同步状态
@@ -2781,16 +2849,18 @@ namespace AMCCS_DEV
 			}
 
 			//更新上一次射击火炮索引
-			public void update_last_fire_index(int index)
+			// [in] index 上一次射击的火炮的全局编号
+			public void update_last_fire_index(int _index)
 			{
-				this.index__cannon_last_fire = index - index__cannon_begin;
+				if (_index >= index__cannon_begin && _index <= index__cannon_end)
+					this.index__cannon_last_fire = _index - index__cannon_begin;
 			}
 
 			//返回就绪的火炮数量
 			private int count_ready_cannon()
 			{
 				int count = 0;
-				foreach (var item in list_cannons)
+				foreach (var item in list__cannons)
 					if (item.status_cannon == PistonCannon.CannonStatus.Ready)
 						++count;
 				return count;
@@ -2802,9 +2872,10 @@ namespace AMCCS_DEV
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
 					"\n<group> ------------------------------ No." + this.index_group
+					+ $"\n<group> No.{this.index_group} {flag__enabled}"
 					+ "\n<mode_fire> " + this.mode_fire
-					+ "\n\n");
-				foreach (var item in list_cannons)
+					+ "\n<cannons> --------------------\n");
+				foreach (var item in list__cannons)
 					sb.Append(item.get_cannon_info() + "\n");
 				sb.Append(string_builder__init_info);
 				return sb.ToString();
@@ -2815,10 +2886,10 @@ namespace AMCCS_DEV
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
 					"<group> ------------------------------ No." + this.index_group
-					+ "\n<group> No." + this.index_group
+					+ $"\n<group> No.{this.index_group} {flag__enabled}"
 					+ "\n<mode_fire> " + this.mode_fire
 					+ "\n<cannons> --------------------\n");
-				foreach (var item in list_cannons)
+				foreach (var item in list__cannons)
 					sb.Append(item.get_cannon_simplified_info() + "\n");
 				return sb.ToString();
 			}
