@@ -89,7 +89,7 @@ namespace AMCCS_DEV
 		string tag__custom_interface_timer_1 = "timer__custom_interface__1__#";
 		//标签 信息显示器编组
 		string tag__info_displays_group = "group__information_displayers";
-		//标签 火炮破速限器编组
+		//标签 火炮破速限元件编组
 		string tag__cannon_speed_limit_breaker_group = "group__cannon_speed_limit_breaker__#";
 		//标签 火炮次要活塞元件编组
 		string tag__cannon_minor_pistons_group = "group__cannon_minor_pistons__#";
@@ -451,7 +451,7 @@ namespace AMCCS_DEV
 
 			//遍历显示单元
 			foreach (var item in list__display_units)
-				renger_displayer(item);
+				render_displayer(item);
 
 			//显示测试信息
 			//Echo(string_builder__test_info.ToString());
@@ -460,7 +460,7 @@ namespace AMCCS_DEV
 		}
 
 		// 渲染显示器内容
-		void renger_displayer(DisplayUnit unit_display)
+		void render_displayer(DisplayUnit unit_display)
 		{
 			if (unit_display.flag_graphic)
 			{
@@ -584,7 +584,7 @@ namespace AMCCS_DEV
 
 		}
 
-		//绘制 火炮状态
+		// 绘制 火炮状态
 		void draw_cannons_state(IMyTextSurface surface, int index_begin, int index_end)
 		{
 			//帧缓冲区
@@ -1534,7 +1534,8 @@ namespace AMCCS_DEV
 				//检查
 				if (group__cannon_detach_part_grid_locator == null)
 				{
-					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\"\n");
+					string_builder__init_info.Append
+						($"<warning>\nno group found with name \"{name_group}\".\nNote that if locator is not set, some functions will not be available\n");
 				}
 				else
 				{
@@ -1542,7 +1543,7 @@ namespace AMCCS_DEV
 					group__cannon_detach_part_grid_locator.GetBlocksOfType<IMyTerminalBlock>(list_temp);
 					locator__cannon_detach_part_grid = list_temp.Count == 0 ? null : list_temp[0];
 					if (locator__cannon_detach_part_grid == null)
-						string_builder__init_info.Append($"<warning>\nno locator found in group \"{name_group}\", ignored\n");
+						string_builder__init_info.Append($"<warning>\nno locator found in group \"{name_group}\", ignored.\nNote that if locator is not set, some functions will not be available\n");
 				}
 
 				/********************
@@ -1627,6 +1628,8 @@ namespace AMCCS_DEV
 							// 破限机构是活塞时开启炮弹断连功能
 							if (block__speed_limit_breaker is IMyPistonBase)
 								flag__enable_shell_disconnection = true;
+							else
+								string_builder__init_info.Append($"<warning>\nno pistons found in group \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
 						}
 					}
 				}
@@ -2029,7 +2032,8 @@ namespace AMCCS_DEV
 				times_delay += time;
 				status_cannon = CannonStatus.Pausing;//设置暂停状态
 				flag_paused = true;// 设置是否暂停过的标记
-								   //program.times__before_next_auto_fire += time;
+
+				//program.times__before_next_auto_fire += time;
 			}
 
 			//释放 同时会开启锁定垂直关节
@@ -2458,13 +2462,20 @@ namespace AMCCS_DEV
 			}
 
 			// 检查分离网格状态
+			// 检查网格上的方块数量是否合法
 			private bool check_detach_grid_status()
 			{
-				if (block__speed_limit_breaker == null)
-					// 用户没有注册对象, 无法检查
-					return true;
-				// 获取顶部网格
-				IMyCubeGrid grid = block__speed_limit_breaker.TopGrid;
+				// 目标网格
+				IMyCubeGrid grid = null;
+
+				if (block__speed_limit_breaker != null)
+					// 获取顶部网格
+					grid = block__speed_limit_breaker.TopGrid;
+
+				if (grid == null && locator__cannon_detach_part_grid != null)
+					// 获取定位器所在的网格
+					grid = locator__cannon_detach_part_grid.CubeGrid;
+
 				if (grid == null)
 					// 没有顶部网格, 不存在头元件, 返回错误
 					return false;

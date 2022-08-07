@@ -117,12 +117,25 @@ namespace AN0_RADAR_DEV
 		// 距离 最小距离 (低于此距离的目标不会被摄像头锁定)
 		double distance__min = 10;
 		// 距离 最大距离 (锁定时的最大的投射距离)
-		double distance__max = 50000;
+		double distance__max = 5000;
 		// 距离 扫描距离
 		double distance__scan = 2000;
 
+		// 倍率 投射倍率
+		double ratio__raycast = 1.01;
+		// 常数 投射常数
+		double constant__raycast = 10;
+
+		// 注: 摄像头消耗能量 = 原始投射距离 * ratio__raycast + constant__raycast
+
+
+		// 次数 期望维持的能量对应的投射次数
+		// 意味着脚本会始终尝试将能量维持到能满足此变量对应的投射次数所需的能量水平
+		// 此值无需过大, 但也避免过小, 以提供一定的容错性, 应对可能突然增长的能量消耗需求
+		double number__raycast_of_expectation_energe = 100;
+
 		// 最低频率, 代表即使在最坏的情况下脚本也以该频率尝试投射
-		double frequency__min = 1;
+		double frequency__min = 0.25;
 		// 对数函数的底数
 		double base__log = Math.E;
 
@@ -153,16 +166,25 @@ namespace AN0_RADAR_DEV
 		// 次数 距离下一次 更新输出
 		long time__before_next_output_update = 0;
 
+		// 周期 扫描
+		double period__scanning = 0;
+		// 周期 锁定
+		double period__locking = 0;
+
 		// 次数 距离下一次 扫描
-		long time__before_next_scanning = 0;
+		double time__before_next_scanning = 0;
 		// 次数 距离下一次 锁定
-		long time__before_next_locking = 0;
+		double time__before_next_locking = 0;
 
 		// 时间戳(脚本全局, ms)
 		long timestamp = 0;
 		// 时间段
 		long time_span;
 
+		// 计数 对扫描有效的摄像头 (注意这是一个浮点数, 相当于当前有效性之和)
+		double count__effective_camera_for_scanning;
+		// 计数 对锁定有效的摄像头 (注意这是一个浮点数, 相当于当前有效性之和)
+		double count__effective_camera_for_locking;
 		// 总射程 对扫描有效的
 		double total_range__effective_for_scanning;
 		// 总射程 对锁定有效的
@@ -171,6 +193,29 @@ namespace AN0_RADAR_DEV
 		double variation__range;
 		// 摄像头射程总量(每一帧更新)
 		double sum__range;
+
+		// 索引 上一次用于扫描的摄像头的索引
+		int index__last_camera_for_scanning = -1;
+		// 索引 上一次锁定用摄像头的索引
+		int index__last_camera_for_locking = -1;
+
+		// 优先级 上一次用于扫描的摄像头的优先级
+		double priority__of_last_camera_for_scanning = 0;
+		// 优先级 上一次用于锁定的摄像头的优先级
+		double priority__of_last_camera_for_locking = 0;
+
+		PidCore pid_core__scanning = new PidCore
+		(
+			0.03, // P
+			0.02, // I
+			0.09, // D
+			1.0, // 衰减系数
+			1.0, // 最大倍率
+			5, // 输出上限
+			-5, // 输出下限
+			100, // 积分分离阈值
+			100 // 积分上限
+		);
 
 		//当前位置, 该值被视作脚本所在的实体的核心位置
 		Vector3D position;
@@ -188,9 +233,9 @@ namespace AN0_RADAR_DEV
 		Dictionary<long, Target> dict__targets_from_other_instance = new Dictionary<long, Target>();
 
 		// 字典 短时间内的摄像头有效性评价 用于扫描 (1.0 为最大值, 0 为最小值)
-		Dictionary<IMyCameraBlock, double> dict__camera_effectiveness_at_the_time__scanning = new Dictionary<IMyCameraBlock, double>();
+		Dictionary<IMyCameraBlock, CameraEvaluationInformation> dict__camera_effectiveness_at_the_time__scanning = new Dictionary<IMyCameraBlock, CameraEvaluationInformation>();
 		// 字典 短时间内摄像头的有效性评价 用于锁定 (值域同上)
-		Dictionary<IMyCameraBlock, double> dict__camera_effectiveness_at_the_time__locking = new Dictionary<IMyCameraBlock, double>();
+		Dictionary<IMyCameraBlock, CameraEvaluationInformation> dict__camera_effectiveness_at_the_time__locking = new Dictionary<IMyCameraBlock, CameraEvaluationInformation>();
 
 		//列表 射线投射锁定目标
 		List<Target> list__targets_of_raycast = new List<Target>();
@@ -272,7 +317,7 @@ namespace AN0_RADAR_DEV
 		// 脚本更新
 		void update_script()
 		{
-			try
+			//try
 			{
 				// 更新摄像头数据
 				update_camera_data();
@@ -304,10 +349,11 @@ namespace AN0_RADAR_DEV
 				// 更新对象列表
 				update_targets_info();
 			}
-			catch (Exception e)
-			{
-				Me.CustomData = e.ToString();
-			}
+			//catch (Exception e)
+			//{
+			//    //Me.CustomData = e.ToString();
+			//    throw e;
+			//}
 
 			//信息显示
 			display_info();
@@ -424,21 +470,18 @@ namespace AN0_RADAR_DEV
 			//// 更新射程变化量 (平滑)
 			//variation__range = TK.cal_smooth_avg(variation__range, sum__range - tmp);
 
-			// 每一轮, 摄像头的有效性降低一个常数, 无论当轮是否参与投射 (这里设为 0.05, 也就是说20秒之后摄像头不再被视为有效的)
-			// 此处分为两类, 一类用于扫描, 一类用于投射
-
-			total_range__effective_for_scanning = 0;
-			List<IMyCameraBlock> keys = new List<IMyCameraBlock>(dict__camera_effectiveness_at_the_time__scanning.Keys);
-			foreach (var key in keys)
+			if (flag__scanning)
 			{
-				var value = dict__camera_effectiveness_at_the_time__scanning[key];
-				total_range__effective_for_scanning = key.AvailableScanRange * value;
-				value -= 0.0005;
-				if (value < 0)
-					dict__camera_effectiveness_at_the_time__scanning.Remove(key);
-				else
-					dict__camera_effectiveness_at_the_time__scanning[key] = value;
+				total_range__effective_for_scanning = 0;
+				count__effective_camera_for_scanning = 0;
+				foreach (var pair in dict__camera_effectiveness_at_the_time__scanning)
+				{
+					double effectiveness;
+					total_range__effective_for_scanning += pair.Value.update(out effectiveness);
+					count__effective_camera_for_scanning += effectiveness;
+				}
 			}
+
 		}
 
 		// 更新控制器状态
@@ -534,17 +577,6 @@ namespace AN0_RADAR_DEV
 		void toggle_scanning_status()
 		{
 			flag__scanning = !flag__scanning;
-
-			if (flag__scanning)
-			{
-				List<IMyCameraBlock> keys = new List<IMyCameraBlock>(dict__camera_effectiveness_at_the_time__scanning.Keys);
-				foreach (var key in keys)
-				{
-					var value = dict__camera_effectiveness_at_the_time__scanning[key];
-					if (value < 0.5)
-						dict__camera_effectiveness_at_the_time__scanning[key] = 0.5;
-				}
-			}
 		}
 
 		// 停止锁定
@@ -576,10 +608,18 @@ namespace AN0_RADAR_DEV
 				// 设置下一次扫描的冷却时间
 				if (flag__enable_unlimited_raycast)
 					// 无限投射则每一帧都进行投射
-					time__before_next_scanning = 1;
+					time__before_next_scanning += (period__scanning = 1.0f);
 				else
 					// 根据当前能量计算投射频率
-					time__before_next_scanning = TK.calculate_period(total_range__effective_for_scanning, base__log, frequency__min);
+					time__before_next_scanning += (period__scanning = TK.calculate_period
+						(total_range__effective_for_scanning, // 当前有效能量
+						number__raycast_of_expectation_energe * distance__scan, // 期望能量
+						count__effective_camera_for_scanning * 2000.0 / 60.0, // 当前有效增量
+						frequency__min, // 最低频率
+						ratio__raycast * distance__scan + constant__raycast, // 
+						pid_core__scanning)); // PID 控制核心
+
+				string_builder__test_info.Append($"PID output: {pid_core__scanning.output__last.ToString("0.000f")}\n");
 			}
 			--time__before_next_scanning;
 
@@ -592,84 +632,28 @@ namespace AN0_RADAR_DEV
 		// 朝指定坐标投射
 		// 返回是否成功, 成功意味着不光进行了投射, 投射到了目标, 还意味着通过了筛选器
 		// 返回与投射相关的信息, 包括使用了什么摄像头, 投射距离等等, 若探测到目标, 即使没有通过筛选器依旧会返回
-		bool cast_at_coordinate(out RaycastInfo _info, Vector3D _vector_coordinate, Dictionary<IMyCameraBlock, double> _dict__camera_effectiveness)
+		bool cast_at_coordinate(out RaycastInfo _raycast_info, Vector3D _vector_coordinate, Dictionary<IMyCameraBlock, CameraEvaluationInformation> _dict__camera_effectiveness)
 		{
-			// 目标实体信息
-			MyDetectedEntityInfo? entity_info__temp = null;
-			// 偏航, 俯仰 (用于摄像头投射)
-			float yaw, pitch;
-			// 用于投射的摄像头
-			IMyCameraBlock camera__target = null;
-			// 角度, 目标距离
-			double angle = -1, distance = -1;
-			// 遍历全部摄像头
-			foreach (var camera in object_manager__script.list_camera)
-			{
-				// 投射朝向
-				var orientation = _vector_coordinate - camera.WorldMatrix.Translation;
+			_raycast_info = null;
 
-				// 全局朝向转 YP
-				TK.global_to_yaw_pitch(out yaw, out pitch, camera.WorldMatrix, orientation);
+			// 两次遍历方式, 从上一次选中的目标摄像头的位置向后遍历, 若未发现满足条件的摄像头则从头遍历
 
-				// 检查是否超过了当前摄像头的射界
-				if (Math.Abs(yaw) > camera.RaycastConeLimit || Math.Abs(pitch) > camera.RaycastConeLimit)
-					continue;
-				// 计算投射距离 (当次投射将消耗的能量) (使用固定的倍率 1.05)
-				distance = 1.05 * orientation.Length();
+			// 遍历全部摄像头 (从上一次的位置开始)
+			if (index__last_camera_for_scanning < object_manager__script.list_camera.Count)
+				_raycast_info = access_all_the_cameras
+					(ref index__last_camera_for_scanning, ref priority__of_last_camera_for_scanning, index__last_camera_for_scanning + 1, _vector_coordinate);
 
-				// 计算摄像头有效性
-				// 计算夹角
-				double angle__crt = 180 / Math.PI * TK.calculate_angle(camera.WorldMatrix.Forward, orientation);
+			if (_raycast_info == null)
+				_raycast_info = access_all_the_cameras
+					(ref index__last_camera_for_scanning, ref priority__of_last_camera_for_scanning, 0, _vector_coordinate);
 
-				// 0度评价为1, 超出或等于射界边界时有效性为0, 不可为负
-				double effectiveness = Math.Max(0, 1 - (angle__crt / camera.RaycastConeLimit));
-
-				// 更新摄像头有效性系数 (使用传入的参数的字典)
-				if (_dict__camera_effectiveness.ContainsKey(camera))
-					// 字段中存在数据, 则将有效性系数更新为当前值 + 新的有效性, 有效性值域 [0, 1]
-					_dict__camera_effectiveness[camera] = Math.Min(1, _dict__camera_effectiveness[camera] + effectiveness);
-				else
-					_dict__camera_effectiveness[camera] = effectiveness;
-
-				// 检查投射距离是否超过上限
-				if (distance > this.distance__max)
-					continue;
-
-				// 检查摄像头是否有足够能量
-				if (distance < camera.AvailableScanRange)
-				{
-					// 进行投射
-					entity_info__temp = camera.Raycast(distance, pitch, yaw);
-					if (object_manager__script.set__self_id.Contains(entity_info__temp.Value.EntityId))
-					{
-						// 扫描到自身网格, 跳过
-						entity_info__temp = null;
-						continue;
-					}
-					else
-					{
-						// 记录投射的信息
-						camera__target = camera;
-						angle = angle__crt;
-						// 扫描成功, 结束 (无论是否扫描到对象)
-						break;
-					}
-				}
-				else
-				{
-					// 能量不足
-					continue;
-				}
-			}
-
-			// 扫描到对象且距离超过阈值
-			if (entity_info__temp.HasValue && !entity_info__temp.Value.IsEmpty())
+			// 扫描到对象
+			if (_raycast_info != null && _raycast_info.entity_info.HasValue && !_raycast_info.entity_info.Value.IsEmpty())
 			{
 				// 设置返回的信息
-				_info = new RaycastInfo(camera__target, distance, entity_info__temp, angle);
 
 				bool flag__exit = false;
-				switch (entity_info__temp.Value.Type) // 类型过滤器, 若不通过过滤器本函数将会返回 false
+				switch (_raycast_info.entity_info.Value.Type) // 类型过滤器, 若不通过过滤器本函数将会返回 false
 				{
 					case MyDetectedEntityType.CharacterHuman://人类角色
 					case MyDetectedEntityType.CharacterOther://非人角色
@@ -689,7 +673,7 @@ namespace AN0_RADAR_DEV
 					case MyDetectedEntityType.None://空
 						flag__exit = true; break;//被忽略的类型
 				}
-				switch (entity_info__temp.Value.Relationship)//关系过滤器
+				switch (_raycast_info.entity_info.Value.Relationship)//关系过滤器
 				{
 					case MyRelationsBetweenPlayerAndBlock.Friends://友方
 					case MyRelationsBetweenPlayerAndBlock.FactionShare://阵营共享
@@ -710,10 +694,106 @@ namespace AN0_RADAR_DEV
 			else
 			{
 				// 使用默认构造函数, 将会构造一个不具有有效性的 RaycastInfo 实例
-				_info = new RaycastInfo();
+				_raycast_info = new RaycastInfo();
 				// 没有查询到目标
 				return false;
 			}
+		}
+
+		// 遍历所有的摄像头, 获取投射信息
+		// [in] _index__last 上一次的索引
+		// [in] _priority__last 上一次的优先级
+		// [in] _priority__last 上一次投射的优先级
+		// [return] 投射相关信息, 若没有摄像头满足优先级条件, 则会返回 null
+		RaycastInfo access_all_the_cameras
+			(ref int _index__last, ref double _priority__last, int _index__begin, Vector3D _vector_coordinate)
+		{
+			Echo($"_index__begin : {_index__begin}");
+
+			RaycastInfo raycast_info__result = null;
+
+			// 遍历全部摄像头, 从上一次的位置遍历
+			for (int index = _index__begin; index < object_manager__script.list_camera.Count; ++index)
+			{
+				IMyCameraBlock camera = object_manager__script.list_camera[index];
+
+				var info = dict__camera_effectiveness_at_the_time__scanning[camera];
+
+				// 检查优先级, 必须满足当前选中的摄像头的优先级大于上一次投射的摄像头的优先级的一定比例
+				// 该检查用于过滤, 避免进入 try_raycast() 函数, 降低脚本总体开销
+				if (info.priority >= 0.5 * _priority__last)
+				{
+					// 尝试进行投射, 返回投射信息
+					raycast_info__result = try_raycast(_vector_coordinate, info);
+				}
+
+				if (raycast_info__result != null && raycast_info__result.flag__did_raycasted)
+				{
+					if (raycast_info__result.entity_info != null)
+					{
+						if (object_manager__script.set__self_id.Contains(raycast_info__result.entity_info.Value.EntityId))
+						{
+							// 扫描到自身网格, 视为失败投射, 跳过
+							raycast_info__result = null;
+							continue;
+						}
+					}
+
+					// 扫描成功, 结束 (无论是否扫描到对象)
+
+					// 记录当前信息
+					_index__last = index;
+					_priority__last = info.priority;
+					break;
+				}
+				else
+				{
+					// 无法投射
+					continue;
+				}
+			}
+			return raycast_info__result;
+		}
+
+		// 尝试进行投射, 返回投射信息, 但摄像头并非一定发出投射
+		// [in] _vector_coordinate 投射坐标
+		// [in] _info 摄像头评估信息
+		// [return] 与投射相关的信息, 一定会返回一个实例, 返回值不会为 null
+		// 注: 若投射成功但没有发现目标, 返回的实例的 entity_info 成员将是 null
+		RaycastInfo try_raycast(Vector3D _vector_coordinate, CameraEvaluationInformation _info)
+		{
+			MyDetectedEntityInfo? entity_info = null;
+			IMyCameraBlock camera = _info.camera;
+
+			// 投射朝向向量
+			var orientation = _vector_coordinate - camera.WorldMatrix.Translation;
+			// 偏航, 俯仰 (用于摄像头投射)
+			float yaw, pitch;
+
+			// 全局朝向转 YP
+			TK.global_to_yaw_pitch(out yaw, out pitch, camera.WorldMatrix, orientation);
+			// 使用固定的倍率 * 投射长度, 提供容错性
+			double distance = ratio__raycast * orientation.Length() + constant__raycast;
+			// 计算摄像头 F 向量与投射向量的夹角
+			double angle__crt = 180 / Math.PI * TK.calculate_angle(camera.WorldMatrix.Forward, orientation);
+
+			// 检查投射距离是否超过上限, 检查摄像头能量是否充足, 检查是否处于射界内
+			bool flag = distance > distance__max
+				|| distance < camera.AvailableScanRange
+				|| Math.Abs(yaw) > camera.RaycastConeLimit
+				|| Math.Abs(pitch) > camera.RaycastConeLimit;
+
+			// 更新评估信息
+			_info.update_after_cast(angle__crt, flag);
+			if (flag)
+			{
+				// 施放投射
+				entity_info = camera.Raycast(distance, pitch, yaw);
+				// 检查是否扫描到物体
+				if (entity_info.Value.IsEmpty())
+					entity_info = null;
+			}
+			return new RaycastInfo(camera, distance, entity_info, angle__crt, flag);
 		}
 
 		// 将目标信息在字典中注册
@@ -798,18 +878,17 @@ namespace AN0_RADAR_DEV
 				$"\n<count_update> {count__update}"
 				+ $"\n<count__message_received> {count__message_received}"
 				+ $"\n<timestamp timespan>  {timestamp} {time_span}"
-				+ $"\n<flag__under_control> {flag__under_control}"
-				+ $"\n<flag_scanning> {flag__scanning}"
-				+ $"\n<total_range__effective_for_scanning> {total_range__effective_for_scanning.ToString("0.00")}"
-				+ $"\n<total_range__effective_for_locking> {total_range__effective_for_locking.ToString("0.00")}"
-				+ $"\n<time__before_next_scanning> {time__before_next_scanning}"
-				+ $"\n<time__before_next_locking> {time__before_next_locking}"
+				+ $"\n<flag__under_control flag_scanning> {flag__under_control} {flag__scanning}"
+				+ $"\n<total_range__effective_for_scanning count__effective_camera_for_scanning> \n{total_range__effective_for_scanning.ToString("0.0")} {count__effective_camera_for_scanning.ToString("0.0")}"
+				+ $"\n<total_range__effective_for_locking> \n{total_range__effective_for_locking.ToString("0.00")}"
+				+ $"\n<period__scanning> {period__scanning.ToString("0.00")}"
+				+ $"\n<period__locking> {period__locking.ToString("0.00")}"
+				+ $"\n<pid.integral .output__last .error__last> \n {pid_core__scanning.integral.ToString("0.00")} {pid_core__scanning.output__last.ToString("0.00")} {pid_core__scanning.error__last.ToString("0.00")}"
 				+ $"\n<count__targets_of_auto_turrets> {dict__targets_of_auto_turrets.Keys.Count}"
 				+ $"\n<count__targets_of_raycast>  {dict__targets_of_raycast.Count}"
 				+ $"\n<vector__scanning_coordinate>\n    {vector__scanning_coordinate.ToString("0.00")}"
 				+ $"\n<count_all_blocks> {object_manager__script.list_block.Count}"
-				+ $"\n<count_controllers> {object_manager__script.list_controller.Count}"
-				+ $"\n<count_cameras> {object_manager__script.list_camera.Count}"
+				+ $"\n<count_controllers count_cameras> {object_manager__script.list_controller.Count} {object_manager__script.list_camera.Count}"
 				+ $"\n<count_auto_turrets> {object_manager__script.list__auto_turret.Count}\n"
 			);
 
@@ -831,6 +910,9 @@ namespace AN0_RADAR_DEV
 
 			//显示测试信息
 			Echo("\n<debug>\n" + string_builder__test_info.ToString());
+
+			if (string_builder__test_info.Length > 5000)
+				string_builder__test_info.Clear();
 
 			if (TK.check_time(ref time__before_next_char_pattern_update, 1))
 				if ((++index__crt_char_pattern) >= string_array__runtime_patterns.Length)
@@ -924,6 +1006,9 @@ namespace AN0_RADAR_DEV
 			// 初始化通信
 			init_communication();
 
+			// 初始化摄像头评估信息
+			init_cameras_evaluation();
+
 			// 检查是否出现错误
 			if (str_error == null && !data_config__script.flag__config_error)
 				// 设置执行频率
@@ -940,6 +1025,13 @@ namespace AN0_RADAR_DEV
 				(string__internal_communication_channel);
 			// 注: 回调是回调自己
 			//listener__inter_instance_communication.SetMessageCallback("terminate");
+		}
+
+		// 初始化摄像头评估信息
+		void init_cameras_evaluation()
+		{
+			foreach (var camera in object_manager__script.list_camera)
+				dict__camera_effectiveness_at_the_time__scanning[camera] = new CameraEvaluationInformation(camera);
 		}
 
 		// 初始化脚本显示单元
@@ -1370,6 +1462,8 @@ namespace AN0_RADAR_DEV
 			public MyDetectedEntityInfo? entity_info { get; private set; }
 			// 投射角度差
 			public double angle { get; private set; }
+			// 标记 是否成功投射
+			public bool flag__did_raycasted { get; private set; }
 
 			// 默认构造函数, 将构造一个不具有有效性的实例
 			public RaycastInfo()
@@ -1377,14 +1471,17 @@ namespace AN0_RADAR_DEV
 				camera = null;
 				distance = angle = -1;
 				entity_info = null;
+				flag__did_raycasted = false;
 			}
 
-			public RaycastInfo(IMyCameraBlock _camera, double _distance, MyDetectedEntityInfo? _entity_info, double _angle)
+			// 标准构造函数
+			public RaycastInfo(IMyCameraBlock _camera, double _distance, MyDetectedEntityInfo? _entity_info, double _angle, bool _flag__did_raycasted)
 			{
 				this.camera = _camera;
 				this.distance = _distance;
 				this.entity_info = _entity_info;
 				this.angle = _angle;
+				this.flag__did_raycasted = _flag__did_raycasted;
 			}
 		}
 
@@ -1407,32 +1504,45 @@ namespace AN0_RADAR_DEV
 			// 摄像头
 			public IMyCameraBlock camera { get; private set; }
 			// 有效性, 有效性是指对于投射目标而言, 摄像头可能处于射界内的可能性的评估
-			public double effectiveness { get; set; }
+			public double effectiveness { get; private set; }
 			// 优先级, 当一个摄像头被使用之后其优先级会降低
-			public double priority { get; set; }
+			public double priority { get; private set; }
+			// 当前射程
+			public double range => camera.AvailableScanRange;
 
 			public CameraEvaluationInformation(IMyCameraBlock _camera)
 			{
-				this.camera = camera;
+				this.camera = _camera;
 				// 初始时将摄像头的有效性视为 0.5
 				effectiveness = 0.5;
 				// 优先级初始均为 1
 				priority = 1;
 			}
 
-			// 更新
-			public void update()
+			// 更新, 返回当前摄像头的有效性射程评估值 (有效性 * 总射程)
+			// [out] _effectiveness 返回有效性
+			public double update(out double _effectiveness)
 			{
+				_effectiveness = effectiveness;
+				double result = effectiveness * camera.AvailableScanRange;
 				// 有效性将线性减少
 				effectiveness -= 0.001;
-				// 优先级的增长速度与有效性和摄像头的能量有关, 其中与有效性关系较大, 与能量关系较低
-				priority += effectiveness * (0.01 + camera.AvailableScanRange / 100000);
+				if (effectiveness < 0)
+					effectiveness = 0;
+				// 即使当有效性为0时优先级仍然会缓慢增长, 若有效性较高, 此时能量也会加速优先级增长
+				priority += 0.001 + effectiveness * (0.002 + camera.AvailableScanRange / 100000);
+				return result;
 			}
-			// 施放投射, 传入投射夹角
-			public void cast(double _angle)
+
+			// 投射后更新, 传入投射夹角
+			// [in] _angle 当前与目标的角度
+			// [in] _flag__reset_priority 是否重置优先级 (投射是否真正发生)
+			public void update_after_cast(double _angle, bool _flag__reset_priority)
 			{
 				// 进行一次投射之后优先级会降低, 以尽可能降低其被调用的概率
-				priority = 0;
+				if (_flag__reset_priority)
+					priority = 0;
+				effectiveness = Math.Min(1, effectiveness + Math.Max(0, 1 - (_angle / camera.RaycastConeLimit)));
 			}
 
 		}
@@ -1524,6 +1634,17 @@ namespace AN0_RADAR_DEV
 			}
 		}
 
+		/**************************************************************************
+		* 类 CameraGroup
+		* 摄像头编组
+		* 同一个摄像头编组内的摄像头被视为在空间位置上非常相似
+		* (相近的朝向, 同时物理位置距离不远)
+		**************************************************************************/
+		class CameraGroup
+		{
+			public List<IMyCameraBlock> list__camera_in_group;
+		}
+
 		static class TK
 		{
 			//计算平滑均值 (上个平滑值, 当前值, 增量(增量为null使用默认的减法计算))
@@ -1584,9 +1705,47 @@ namespace AN0_RADAR_DEV
 			// 转字符串(保留2位小数)
 			public static string nf(double d) => d.ToString("0.00");
 
-			// 计算周期 (为了防止底数过大会将能量除以1000之后再参与计算) (周期与能量的对数呈负相关)
-			public static long calculate_period(double _energe, double _base__log, double _frequency__min)
-				=> (long)(60.0 / (Math.Log(_energe / 1000 + 1, _base__log) + _frequency__min));
+			// 计算周期 (周期与能量的对数呈负相关)
+			// 内部使用 PID, 尽可能将能量维持在一个稳定的水平
+			// 基准周期 = 平均长度 / 平均增量
+			// 当前误差 = 当前能量 - 预期能量 (误差用于输入 PID)
+			// [in] 当前能量, 预期能量, 当前增量, 最小频率, 平均投射距离, PID 核心对象
+			// [return] 返回计算得出的周期值, 最小不会低于1, 最大不会超过 _frequency__min 对应的周期
+			public static double calculate_period
+				(double _energe__current, double _energe__expected, double _increment__average, double _frequency__min, double _distance__average, PidCore _pid_core)
+			{
+				// 注: PID 传入的误差是当前能量与期望能量的差, 再除以平均投射长度, 也就是说这个误差实际上是 "误差次数"
+				double result = Math.Max
+					(1.0f, Math.Min((60 / _frequency__min), (_distance__average / _increment__average + (_pid_core.cal_output((_energe__current - _energe__expected) / _distance__average)))));
+
+				if (double.IsNaN(result))
+				{
+					throw new Exception
+						(
+						$"\n<info> NaN period" +
+						$"\n<_energe__current> {_energe__current}" +
+						$"\n<_energe__expected> {_energe__expected}" +
+						$"\n<_increment__average> {_increment__average}" +
+						$"\n<_frequency__min> {_frequency__min}" +
+						$"\n<_distance__average> {_distance__average}" +
+						$"\n<_pid_core.error_last> {_pid_core.error__last}" +
+						$"\n<_pid_core.output_last> {_pid_core.output__last}" +
+						$"\n<_pid_core.integral> {_pid_core.integral}" +
+						$"\n<_pid_core.threshold__integral_separation> {_pid_core.threshold__integral_separation}" +
+						$"\n<_pid_core.lower_limit__output> {_pid_core.lower_limit__output}" +
+						$"\n<_pid_core.upper_limit__output> {_pid_core.upper_limit__output}" +
+						$"\n<_pid_core.coefficient__proportion> {_pid_core.coefficient__proportion}" +
+						$"\n<_pid_core.coefficient__integral> {_pid_core.coefficient__integral}" +
+						$"\n<_pid_core.coefficient__differential> {_pid_core.coefficient__differential}" +
+						$"\n<_pid_core.coefficient__dynamic_integral_ratio> {_pid_core.coefficient__dynamic_integral_attenuation_ratio}" +
+						$"\n<_pid_core.coefficient__dynamic_integral_exponent> {_pid_core.coefficient__dynamic_integral_max_ratio}" +
+						""
+						);
+				}
+
+				return result;
+
+			}
 
 			//检查数值
 			public static bool check_value(long value) => value > 0 && value < 1001;
@@ -1600,6 +1759,134 @@ namespace AN0_RADAR_DEV
 
 			public static string[] split_string_2(string str) => str.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
 		}
+
+
+
+		/**************************************************************************
+		* 类 PIDCore
+		* PID 核心
+		* 
+		* 增强
+		* 比例系数:
+		* 
+		* 微分系数:
+		* 
+		* 积分系数:
+		* [0] 积分抗饱和
+		*       某一侧输出到达极限时不进行同侧积分
+		* [1] 积分分离
+		*       误差超过阈值时停止积分
+		* [2] 变速积分
+		*       误差越大积分作用越小, 否则越大
+		* 
+		**************************************************************************/
+		class PidCore
+		{
+			// 分别是: 比例系数 (p), 积分系数 (i), 微分系数 (d)
+			public double coefficient__proportion { get; set; } = 100;
+			public double coefficient__integral { get; set; } = 25;
+			public double coefficient__differential { get; set; } = 50;
+
+			// 积分衰减速度
+			// 1 表示标准衰减速度, <1 衰减更慢, >1 衰减更快
+			public double coefficient__dynamic_integral_attenuation_ratio { get; set; } = 1;
+			// 积分最高倍率, 值必须是一个正数, 相当于当误差趋近于 0 时, 增加积分的倍率
+			public double coefficient__dynamic_integral_max_ratio { get; set; } = 1;
+
+			// 上限 输出上限
+			public double upper_limit__output { get; set; } = 10;
+			// 下限, 输出下限
+			public double lower_limit__output { get; set; } = -10;
+			// 阈值 积分分离阈值 (也就是当误差绝对值大于这个值之后当次不再进行积分操作)
+			public double threshold__integral_separation { get; set; } = 5;
+			// 积分 最大值, 累计的积分的绝对值不可超过这个数字
+			public double limit__integral { get; set; } = 20;
+
+			// 标记 启用微分项
+			public bool flag__enable_derivative_term { get; set; } = true;
+			// 标记 启用积分项
+			public bool flag__enable_integral_term { get; set; } = true;
+			// 标记 启用积分抗饱和
+			public bool flag__enable_integral_anti_windup { get; set; } = true;
+			// 标记 启用积分分离 (当误差特别大的时候, 不进行积分操作, 避免干扰)
+			public bool flag__enable_integral_separation { get; set; } = true;
+			// 标记 启用动态积分 (变速积分)
+			public bool flag__enable_dynamic_integral { get; set; } = true;
+			// 标记 启用积分上限 (保证积分的绝对值不超过上限)
+			public bool flag___enable_upper_limit_of_integral { get; set; } = true;
+
+			// 调用计数
+			public int count_invoke { get; private set; } = 0;
+
+			// 积分值, 积分值相当于对误差的累计计算
+			public double integral { get; private set; } = 0.0;
+			// 误差值 上一次误差
+			public double error__last { get; private set; } = 0.0;
+			// 输出值 上一次的输出值
+			public double output__last { get; private set; } = 0.0;
+
+			// 构造函数
+			public PidCore()
+			{
+
+			}
+
+			public PidCore
+			(
+				double _coefficient__proportion,
+				double _coefficient__integral,
+				double _coefficient__differential,
+				double _coefficient__dynamic_integral_attenuation_ratio,
+				double _coefficient__dynamic_integral_max_ratio,
+				double _upper_limit__output,
+				double _lower_limit__output,
+				double _threshold__integral_separation,
+				double _limit__integral,
+				bool _flag__enable_derivative_term = true,
+				bool _flag__enable_integral_term = true,
+				bool _flag__enable_integral_anti_windup = true,
+				bool _flag__enable_integral_separation = true,
+				bool _flag__enable_dynamic_integral = true,
+				bool _flag___enable_upper_limit_of_integral = true
+			)
+			{
+				this.coefficient__proportion = _coefficient__proportion;
+				this.coefficient__integral = _coefficient__integral;
+				this.coefficient__differential = _coefficient__differential;
+				this.coefficient__dynamic_integral_attenuation_ratio = _coefficient__dynamic_integral_attenuation_ratio;
+				this.coefficient__dynamic_integral_max_ratio = _coefficient__dynamic_integral_max_ratio;
+				this.upper_limit__output = _upper_limit__output;
+				this.lower_limit__output = _lower_limit__output;
+				this.threshold__integral_separation = _threshold__integral_separation;
+				this.limit__integral = _limit__integral;
+				this.flag__enable_derivative_term = _flag__enable_derivative_term;
+				this.flag__enable_integral_term = _flag__enable_integral_term;
+				this.flag__enable_integral_anti_windup = _flag__enable_integral_anti_windup;
+				this.flag__enable_integral_separation = _flag__enable_integral_separation;
+				this.flag__enable_dynamic_integral = _flag__enable_dynamic_integral;
+				this.flag___enable_upper_limit_of_integral = _flag___enable_upper_limit_of_integral;
+			}
+
+			// 计算输出
+			// [in] error 当前误差
+			// [return]   当前误差对应的负反馈输出
+			public double cal_output(double error)
+			{
+				// 计算: 微分 = 当前误差 - 上次误差
+				double derivative = (this.flag__enable_derivative_term) ? (error - error__last) : 0.0;
+				// 开启积分 && 积分分离 (超过阈值不进行积分) && 积分抗饱和 (若输出达到上限, 则误差低于0时不积分; 输出超过上限意味着 error 长期为负数, 因此负 error 不再累加入积分, 防止过饱和)
+				if (this.flag__enable_integral_term && (flag__enable_integral_separation ? (Math.Abs(error) < threshold__integral_separation) : true))
+					if (flag__enable_integral_anti_windup ? ((output__last > upper_limit__output) ? (error > 0) : (output__last < lower_limit__output ? (error < 0) : true)) : true)
+						integral = Math.Max(-limit__integral, Math.Min(limit__integral, integral + (flag__enable_dynamic_integral ? (error / (coefficient__dynamic_integral_attenuation_ratio * Math.Abs(error) + 1 / coefficient__dynamic_integral_max_ratio)) : error)));
+				//integral += flag__enable_dynamic_integral ? (error / (coefficient__dynamic_integral_attenuation_ratio * Math.Abs(error) + 1 / coefficient__dynamic_integral_max_ratio)) : error;
+				++count_invoke; error__last = error;
+				// 计算本轮输出
+				output__last = -(coefficient__proportion * error + coefficient__integral * integral + coefficient__differential * derivative);
+				return Math.Max(lower_limit__output, Math.Min(upper_limit__output, output__last));
+			}
+		}
+
+
 
 		#endregion
 
