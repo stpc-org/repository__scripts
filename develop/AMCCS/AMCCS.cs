@@ -2,7 +2,7 @@
 * 
 * ### Advanced Multiple Cannon Control System ###
 * ### AMCCS | 高级多联装火炮控制系统脚本 ---- ###
-* ### Version 0.2.2 | by SiriusZ-BOTTLE ----- ###
+* ### Version 0.2.3B | by SiriusZ-BOTTLE ---- ###
 * ### STPC旗下SCP脚本工作室开发 欢迎加入STPC  ###
 * ### STPC主群群号:320461590 我们欢迎新朋友-- ###
 * 
