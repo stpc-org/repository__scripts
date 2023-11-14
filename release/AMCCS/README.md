@@ -10,20 +10,19 @@
 ## 目录 | Catalog
 <!-- [TOC] -->
 
-- [使用说明书 | Instruction](#使用说明书--instruction)
-  - [高级多联装火炮控制系统 | Advanced Multiple Cannon Control System](#高级多联装火炮控制系统--advanced-multiple-cannon-control-system)
-  - [目录 | Catalog](#目录--catalog)
-  - [傻瓜式手册](#傻瓜式手册)
-  - [脚本功能](#脚本功能)
-  - [脚本设计原则](#脚本设计原则)
-  - [使用方法](#使用方法)
-  - [脚本参数](#脚本参数)
-  - [脚本选项](#脚本选项)
-  - [LCD配置](#lcd配置)
-  - [信息显示](#信息显示)
-  - [注意事项](#注意事项)
-  - [更新日志](#更新日志)
-  - [实用参数记录](#实用参数记录)
+- [高级多联装火炮控制系统 | Advanced Multiple Cannon Control System](#高级多联装火炮控制系统--advanced-multiple-cannon-control-system)
+- [目录 | Catalog](#目录--catalog)
+- [傻瓜式手册](#傻瓜式手册)
+- [脚本功能](#脚本功能)
+- [脚本设计原则](#脚本设计原则)
+- [使用方法](#使用方法)
+- [脚本参数](#脚本参数)
+- [脚本选项](#脚本选项)
+- [LCD配置](#lcd配置)
+- [信息显示](#信息显示)
+- [注意事项](#注意事项)
+- [更新日志](#更新日志)
+- [实用参数记录](#实用参数记录)
 
 ## 傻瓜式手册
 > 如果你只想使用此脚本的核心功能, 并且懒得看复杂的说明文档, 请看这里, 其它都可不看  
@@ -258,10 +257,11 @@
     ```
 
 33. **`period__update_output`** (周期, 整数) 更新脚本输出周期 (LCD, 编程块终端)(此值忌过小, 存在性能问题)
-34. **`delay_release`** (延时, 整数) 火炮释放弹性势能的时刻
+34. **`delay__release`** (延时, 整数) 火炮释放弹性势能的时刻
     ```
     在这一个动作, 如果开启了自动激活弹头功能, 那么脚本会开始尝试获取弹头对象.
     在这一个动作, 如果开启了自动锁定垂直关节功能, 那么脚本会锁定对应的转子或铰链.
+    重载时, 活塞在此时伸展, 而不会执行释放动作
     ```
      
 35. **`delay__detach_begin`** (延时, 整数) 火炮开始准备进行炮弹分离的时刻
@@ -322,27 +322,36 @@
     在这一个动作, 如果开启了自动开关焊接器, 那么脚本会尝试关闭焊接器.
     ```
     
-46. **`delay__first_reload`** (延时, 整数) 火炮第一次自动重载的延迟时间(此值必须为非负数)
+46. **`delay__first_reload`** (延时, 整数) 火炮第一次自动重载的延迟时间 (此值必须为非负数)
     ```
     什么时候会发生第一次自动重载:
     [0] flag__reload_once_after_script_initialization == true
     [1] 火炮初始化时发现火炮状态异常 (比如说火炮在物理上没有处于就绪状态)
     ```
 
-47. **`delay__pausing`** (延时, 整数) 火炮重载过程中主活塞组伸展后的强制性暂停时间(此值必须为非负数)
-    ```
+47. **`delay__pausing`** (延时, 整数) 火炮重载过程中主活塞组伸展后的强制性暂停时间 (此值必须为非负数)
+
+    ```txt
     只有火炮执行重载命令显式重载时才会考虑这个暂停时间, 火炮射击后的自动重载是不会执行这个暂停的
     ```
 
-48. **`distance__warhead_savety_lock`** (距离, 浮点数) 弹头安全锁距离
-49. **`number__warhead_countdown_seconds`** (秒数, 浮点数) 弹头倒计时秒数
-50. **`time__disconnecting_shell`** (时间, 整数) 断开炮弹连接耗时
-51. **`count__total_blocks_in_detach_grid`** (计数, 整数) 分离件网格总方块数
+48. **`delay__attach_after_release_on_reloead`** (延时, 整数) 火炮重载过程中附着在释放多少帧之后触发 (此值必须为非负数)
+
+    ```txt
+    重载时火炮的活塞在 `delay__release` 时刻伸展, 之后火炮暂停等待伸展完成, 之后立即进行释放, 再之后进行附着
+    本选项控制释放和附着之间的时间间隔
+    ```
+
+49. **`distance__warhead_savety_lock`** (距离, 浮点数) 弹头安全锁距离
+50. **`number__warhead_countdown_seconds`** (秒数, 浮点数) 弹头倒计时秒数
+51. **`time__disconnecting_shell`** (时间, 整数) 断开炮弹连接耗时
+52. **`count__total_blocks_in_detach_grid`** (计数, 整数) 分离件网格总方块数
     ```
     分离件网格一般成分: 合并块+活塞头+投影仪+炮弹方块
     ```
 
-52. **`times__max_delay`** (计数, 整数) 最大延迟 (暂停) 次数 
+53. **`times__max_delay`** (计数, 整数) 最大延迟 (暂停) 次数 
+
     ```
     发射后的炮弹完整性检查未通过时会强制暂停一帧进行等待, (以此实现动态装填时间)
     这个变量控制最大等待次数, 若此值小于等于0, 则不进行任何等待, 立刻进行重载
@@ -362,7 +371,8 @@
 |     `group`      |             显示编号为 `m` 的编组的信息              |   `m`    |             |
 |     `group`      |   显示编号在 `m`(含) 到 `n`(含) 范围内的编组的信息   | `m`, `n` |             |
 
-注: 
+注:
+
 1. 若在以上指令末尾添加 "graphic"(空格分隔), 脚本将以图形方式显示信息  
    只有以上 3, 4 条目的配置支持图形信息显示
 2. 若脚本发现非法的LCD自定义数据, 将会显示错误信息
@@ -374,11 +384,9 @@
    通常此类方块的终端中包含显示器的列表, 这个列表视按照编号升序排列的 (从0开始计数)  
 4. 指令后如果需要带参数请使用空格进行分隔, 如有多个参数每个参数之间都需要至少一个空格
 
-
 ## 信息显示
 
 > 这个部分我懒得写了, 请自行尝试理解一下脚本的各种信息输出
-
 
 ## 注意事项
 
@@ -393,10 +401,20 @@
         若设为轮射, 则当脚本射击时, 会选择一个编组进行射击, 要求组内至少存在一门装填完毕的火炮;  
         若设为齐射, 则当脚本射击时, 会让所有编组进行射击 (若编组内不存在装填完毕的火炮也不会射击).  
 
-
 ## 更新日志
 
-```
+```txt
+========== V0.3.0 ==========
+常规更新
+1. 修改了部分脚本信息提示
+2. 修复了一个错误: 当火炮结构完备但状态不完备时 (非就绪状态) 射击被误认为故障
+3. 修复了一个错误: 自检过程中错误地关闭分离元件
+4. 大幅调整代码结构, 削弱了一些函数的副作用
+新功能
+1. 新增了一系列选项, 和对应的功能, 以支持新式的固定焊接式火炮
+2. 额外添加了3个定时器接口 (默认关闭), 以增强自定义功能
+3. 添加了一个选项以及对应功能: 非就绪状态时射击自动进行重载. 关闭时射击不会有响应
+
 ========== V0.2.3 ==========
 常规更新
 1. 修改了部分脚本信息提示
@@ -528,19 +546,38 @@
 初始版本, 包含基础功能
 ```
 
-
 ## 实用参数记录
-```
-========== 1.8秒装填参数 ==========
-delay_release = 1
-delay__detach_begin = 1
-delay_detach = 2
-delay__detach_end = 10
-delay__try_activate_shell = 5
-delay__pistons_extend = 3
-delay_attach = 30
-dealy__pistons_retract = 86
-delay__custom_interface_timer_0 = 1
-delay__custom_interface_timer_1 = 108
-delay__done_loading = 108
-```
+
+- 基本参数
+
+  ```txt
+  ========== 1.8秒装填参数 ==========
+  delay_release = 1
+  delay__detach_begin = 1
+  delay_detach = 2
+  delay__detach_end = 10
+  delay__try_activate_shell = 5
+  delay__pistons_extend = 3
+  delay_attach = 30
+  dealy__pistons_retract = 86
+  delay__custom_interface_timer_0 = 1
+  delay__custom_interface_timer_1 = 108
+  delay__done_loading = 108
+  ```
+
+- 新版本参数, 修改为 `delay_detach = 1`
+
+  ```txt
+  ========== 1.8秒装填参数 ==========
+  delay_release = 1
+  delay__detach_begin = 1
+  delay_detach = 1
+  delay__detach_end = 10
+  delay__try_activate_shell = 5
+  delay__pistons_extend = 3
+  delay_attach = 30
+  dealy__pistons_retract = 86
+  delay__custom_interface_timer_0 = 1
+  delay__custom_interface_timer_1 = 108
+  delay__done_loading = 108
+  ```

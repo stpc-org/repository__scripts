@@ -1,8 +1,8 @@
-/***************************************************************************************************                          
+﻿/***************************************************************************************************                          
 * 
 * ### Advanced Multiple Cannon Control System ###
 * ### AMCCS | 高级多联装火炮控制系统脚本 ---- ###
-* ### Version 0.3.0B | by inkbottle_9 ------- ###
+* ### Version 0.2.2 | by SiriusZ-BOTTLE ----- ###
 * ### STPC旗下SCP脚本工作室开发 欢迎加入STPC  ###
 * ### STPC主群群号:320461590 我们欢迎新朋友-- ###
 * 
@@ -26,7 +26,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
-namespace AMCCS_DEV
+namespace AMCCS_RELEASE
 {
 	class Program : MyGridProgram
 	{
@@ -35,7 +35,7 @@ namespace AMCCS_DEV
 		#region 脚本字段
 
 		//字符串 脚本版本号
-		readonly string string__script_version = "AMCCS V0.3.0B ";
+		readonly string string__script_version = "AMCCS V0.2.2 ";
 		//数组 运行时字符显示
 		readonly string[] string_array__runtime_patterns = new string[]
 		{
@@ -71,8 +71,6 @@ namespace AMCCS_DEV
 		string tag__cannon_releasers_group = "group__cannon_releasers__#";
 		//标签 火炮分离元件编组
 		string tag__cannon_detachers_group = "group__cannon_detachers__#";
-		//标签 火炮供弹元件编组
-		string tag__cannon_shell_loaders_group = "group__cannon_shell_loaders__#";
 		//标签 火炮弹头编组
 		string tag__cannon_shell_warheads_group = "group__cannon_shell_warheads__#";
 		//标签 火炮 (分离部件网格) 定位器编组
@@ -89,15 +87,9 @@ namespace AMCCS_DEV
 		string tag__custom_interface_timer_0 = "timer__custom_interface__0__#";
 		//标签 接口定时器1
 		string tag__custom_interface_timer_1 = "timer__custom_interface__1__#";
-		//标签 接口定时器2
-		string tag__custom_interface_timer_2 = "timer__custom_interface__2__#";
-		//标签 接口定时器3
-		string tag__custom_interface_timer_3 = "timer__custom_interface__3__#";
-		//标签 接口定时器4
-		string tag__custom_interface_timer_4 = "timer__custom_interface__4__#";
 		//标签 信息显示器编组
 		string tag__info_displays_group = "group__information_displayers";
-		//标签 火炮破速限元件编组
+		//标签 火炮破速限器编组
 		string tag__cannon_speed_limit_breaker_group = "group__cannon_speed_limit_breaker__#";
 		//标签 火炮次要活塞元件编组
 		string tag__cannon_minor_pistons_group = "group__cannon_minor_pistons__#";
@@ -114,21 +106,13 @@ namespace AMCCS_DEV
 		bool flag__auto_trigger_custom_interface_timer_0 = true;
 		//标记(全局) 是否 自动触发用户接口定时器1
 		bool flag__auto_trigger_custom_interface_timer_1 = true;
-		//标记(全局) 是否 自动触发用户接口定时器2
-		bool flag__auto_trigger_custom_interface_timer_2 = true;
-		//标记(全局) 是否 自动触发用户接口定时器3
-		bool flag__auto_trigger_custom_interface_timer_3 = true;
-		//标记(全局) 是否 自动触发用户接口定时器4
-		bool flag__auto_trigger_custom_interface_timer_4 = true;
 		//标记(全局) 是否 自动检查
 		bool flag__auto_check = true;
 		//标记(全局) 是否 自动重载
 		bool flag__auto_reload = true;
 		//标记(全局) 是否 脚本在初始化之后自动将所有火炮重载一次
 		bool flag__reload_once_after_script_initialization = true;
-		//标记(全局) 是否 将火炮在非就绪状态时传入的射击指令转为重载指令
-		bool flag__reload_if_cannon_is_not_ready_when_fire = true;
-		//标记(全局) 是否 启用二段蓄力模式 (此项不开启则有关项全部隐藏)
+		//标记(全局) 是否 启用二段蓄力模式(此项不开启则有关项全部隐藏)
 		bool flag__enable_two_stage_mode = false;
 		//标记(全局) 是否 同步的次要活塞
 		bool flag__synchronized_minor_pistons = false;
@@ -136,8 +120,6 @@ namespace AMCCS_DEV
 		bool flag__enable_shell_disconnection = false;
 		//标记(全局) 是否 启用炮弹完整性检查
 		bool flag__enable_shell_integrity_check = true;
-		//标记(全局) 是否 如果使用的是机械连接部件分离, 头部在炮弹网格上 (必须为 true 否则脚本不支持)
-		//bool flag__head_on_shell = true;
 
 		//周期 自动检查(默认每秒检查一次)
 		int period__auto_check = 60;
@@ -146,51 +128,38 @@ namespace AMCCS_DEV
 		//周期 更新输出(默认每秒3次)
 		int period__update_output = 20;
 
-		//时刻 释放 (重载时这个时间会伸展, 并强制性等待一段时间)
+		//时刻 释放
 		int delay__release = 1;
 		//时刻 分离开始
 		int delay__detach_begin = 1;
-		//时刻 分离 (发射炮弹) (老版本这个值默认是 2, 新版本之后这个值的默认值应该是 1, 旧数值无法工作)
-		int delay__detach = 1;
+		//时刻 分离
+		int delay__detach = 2;
 		//时刻 分离结束
 		int delay__detach_end = 10;
 		//时刻 尝试激活炮弹
 		int delay__try_activate_shell = 5;
 		//时刻 尝试断开炮弹连接
 		int delay__try_disconnect_shell = 10;
-		//时刻 伸展 (取值 [2, 5] 内比较合适)
+		//时刻 伸展(取值 [2, 5] 内比较合适)
 		int delay__pistons_extend = 2;
-		//时刻 固定 (蓄力机构)
+		//时刻 固定
 		int delay__attach = 12;
-		//时刻 固定 (装填炮弹)
-		int delay__load_shell__attach = 13;
-		//时刻 分离 (装填炮弹) (需要在固定之后)
-		int delay__load_shell__dettach = 14;
 		//时刻 收缩
 		int delay__pistons_retract = 26;
-		//时刻 完成装填
-		int delay__done_loading = 60;
-
 		//时刻 定时器 用户自定义接口0
 		int delay__custom_interface_timer_0 = 1;
 		//时刻 定时器 用户自定义接口1
 		int delay__custom_interface_timer_1 = 60;
-		//时刻 定时器 用户自定义接口2
-		int delay__custom_interface_timer_2 = -1;
-		//时刻 定时器 用户自定义接口3
-		int delay__custom_interface_timer_3 = -1;
-		//时刻 定时器 用户自定义接口4
-		int delay__custom_interface_timer_4 = -1;
+		//时刻 完成装填
+		int delay__done_loading = 60;
 
 		//时刻 第一次重载
 		int delay__first_reload = 30;
-		//延时 暂停时长, (重载命令时触发伸展之后的强制性等待时间)
+		//时刻 暂停时长
 		int delay__pausing = 20;
-        //延时 重载时附着在释放多久之后 (此值必须大于0)
-        int delay__attach_after_release_on_reloead = 1;
 
-        //时刻 关闭固定器 (测试的稳定值在 [3, 5] 左右)
-        int delay__disable_fixators = 3;
+		//时刻 关闭固定器 (测试的稳定值在 [3, 5] 左右)
+		int delay__disable_fixators = 3;
 		//时刻 次要活塞伸展 (测试的稳定值在 1 左右)
 		int delay__minor_pistons_extend = 1;
 		//时刻 开启固定器 (错位之后开启就行, 无其它要求)
@@ -205,12 +174,8 @@ namespace AMCCS_DEV
 		double number__warhead_countdown_seconds = 30.0;
 		//时间 断开炮弹连接耗时
 		int time__disconnecting_shell = 10;
-		//时间 活塞伸缩耗时 (用于计算) (默认是小活塞的伸缩时间)
-		int time__pistons_stretching = 24;
 		//计数 分离件网格总方块数 (默认7, 炮弹4个方块, 合并块+活塞头+投影仪)
 		int count__total_blocks_in_detach_grid = 7;
-		//技术 供弹元件网格总方块数 (不带炮弹)
-		int count__total_blocks_in_shell_loaders_grid = 3;
 		//计数 最大延迟次数 (炮弹完整性检查)
 		int times__max_delay = 5;
 
@@ -262,8 +227,8 @@ namespace AMCCS_DEV
 		StringBuilder string_builder__test_info = new StringBuilder();
 		//脚本配置
 		CustomDataConfig custom_data_config__script;
-		//配置集合 脚本 custom_data_config_set__script
-		CustomDataConfigSet c_d_c_s__s;
+		//配置集合 脚本
+		CustomDataConfigSet custom_data_config_set__script;
 		//配置集合 二段式火炮
 		CustomDataConfigSet custom_data_config_set__t;
 
@@ -402,40 +367,25 @@ namespace AMCCS_DEV
 					{
 						//更新所有火炮
 						foreach (var item in list__piston_cannons)
-							item.self_check_immediately();
+							item.check_once_immediately();
 						break;
 					}
 				}
 			}
-			else if (cmd.Count == 2)
+			else
 			{
-				int index = 0;
-				int.TryParse(cmd[1], out index);
+				int index_group = 0;
+				int.TryParse(cmd[1], out index_group);
 				switch (cmd[0])//检查命令
 				{
-					case "fire_cannon":
-						fire_specific_cannon(index);
+					case "fire":
+						fire_specific_group(index_group);
 						break;
-					case "fire_group":
-						fire_specific_group(index);
+					case "fire_S":
+						fire_specific_group(index_group, FireMode.Salvo);
 						break;
-					case "fire_group_S":
-						fire_specific_group(index, FireMode.Salvo);
-						break;
-					case "fire_group_R":
-						fire_specific_group(index, FireMode.Round);
-						break;
-				}
-			}
-			else if (cmd.Count == 3)
-			{
-				int index__0 = 0, index__1;
-				int.TryParse(cmd[1], out index__0);
-				int.TryParse(cmd[2], out index__1);
-				switch (cmd[0])//检查命令
-				{
-					case "set_group_phase":
-						set_group_phase(index__0, index__1);
+					case "fire_R":
+						fire_specific_group(index_group, FireMode.Round);
 						break;
 				}
 			}
@@ -459,8 +409,8 @@ namespace AMCCS_DEV
 				"<script> " + string__script_version + string_array__runtime_patterns[index__crt_char_pattern]
 				+ "\n\n<count__update> " + count__update
 				+ "\n<script_mode> " + script_mode
-				+ "\n<fire_mode__inter_group> " + fire_mode__inter_group
-				+ "\n<fire_mode__intra_group> " + fire_mode__intra_group
+				+ "\n<fire_mode__inter_group>" + fire_mode__inter_group
+				+ "\n<fire_mode__intra_group>" + fire_mode__intra_group
 				+ "\n<count__cmd_run> " + count__cmd_run
 				+ "\n<count__fire> " + count__fire
 				+ "\n<flag__auto_fire> " + flag__auto_fire
@@ -486,7 +436,7 @@ namespace AMCCS_DEV
 
 			//遍历显示单元
 			foreach (var item in list__display_units)
-				render_displayer(item);
+				renger_displayer(item);
 
 			//显示测试信息
 			//Echo(string_builder__test_info.ToString());
@@ -495,7 +445,7 @@ namespace AMCCS_DEV
 		}
 
 		// 渲染显示器内容
-		void render_displayer(DisplayUnit unit_display)
+		void renger_displayer(DisplayUnit unit_display)
 		{
 			if (unit_display.flag_graphic)
 			{
@@ -619,7 +569,7 @@ namespace AMCCS_DEV
 
 		}
 
-		// 绘制 火炮状态
+		//绘制 火炮状态
 		void draw_cannons_state(IMyTextSurface surface, int index_begin, int index_end)
 		{
 			//帧缓冲区
@@ -653,7 +603,6 @@ namespace AMCCS_DEV
 
 			for (int index = index_begin; index <= index_end; ++index)
 			{
-				var cannon = list__piston_cannons[index];
 				MySprite element_bar = new MySprite()
 				{
 					Type = SpriteType.TEXTURE,
@@ -665,14 +614,14 @@ namespace AMCCS_DEV
 					Alignment = TextAlignment.LEFT,
 				};
 				//根据状态调整颜色
-				switch (cannon.status__cannon)
+				switch (list__piston_cannons[index].status_cannon)
 				{
 					case PistonCannon.CannonStatus.Ready://就绪
 						element_bar.Color = Color.Green;//绿色
 						break;
-					case PistonCannon.CannonStatus.Running://装填中
+					case PistonCannon.CannonStatus.Loading://装填中
 						element_bar.Color = Color.White;//白色
-						element_bar.Size = size_rect * (new Vector2((float)list__piston_cannons[index].count__status / delay__done_loading, 1.0f));
+						element_bar.Size = size_rect * (new Vector2((float)list__piston_cannons[index].count_status / delay__done_loading, 1.0f));
 						break;
 					case PistonCannon.CannonStatus.BrokenDown://故障
 						element_bar.Color = Color.Red;//红色
@@ -688,7 +637,7 @@ namespace AMCCS_DEV
 					Type = SpriteType.TEXT,
 					Data = "#" + (index + index__cannon_begin),
 					Position = offset_no,
-					Color = cannon.flag__enabled ? Color.White : Color.Yellow,
+					Color = Color.White,
 					Alignment = TextAlignment.LEFT,
 					FontId = "White",
 					//RotationOrScale=2.5f,//固定大小
@@ -755,30 +704,11 @@ namespace AMCCS_DEV
 			return;
 		}
 
-		// 特定编组射击
-		void fire_specific_group(int _index__group = 0, FireMode _mode = FireMode.None)
+		//特定编组射击
+		void fire_specific_group(int index_group = 0, FireMode mode = FireMode.None)
 		{
-			if (_index__group > -1 && _index__group < list__cannon_groups.Count)
-				list__cannon_groups[_index__group].fire(_mode);
-		}
-
-		// 设置编组相位
-		void set_group_phase(int _index__group, int _phase)
-		{
-			if (_index__group > -1 && _index__group < list__cannon_groups.Count)
-				list__cannon_groups[_index__group].set_phase(_phase);
-		}
-
-		// 射击特定编号的火炮 (前提是其处于就绪状态)
-		void fire_specific_cannon(int _index__cannon = 0)
-		{
-			if (_index__cannon >= index__cannon_begin || _index__cannon <= index__cannon_end)
-			{
-				var cannon = list__piston_cannons[_index__cannon - this.index__cannon_begin];
-				if (cannon.status__cannon == PistonCannon.CannonStatus.Ready)
-					//设置射击命令
-					cannon.set_command(PistonCannon.CannonCommand.Fire);
-			}
+			if (index_group > -1 && index_group < list__cannon_groups.Count)
+				list__cannon_groups[index_group].fire(mode);
 		}
 
 		//初始化脚本
@@ -1057,91 +987,78 @@ namespace AMCCS_DEV
 			//脚本配置实例
 			custom_data_config__script = new CustomDataConfig(Me);
 
-			c_d_c_s__s = new CustomDataConfigSet("SCRIPT CONFIGURATION");
+			custom_data_config_set__script = new CustomDataConfigSet("SCRIPT CONFIGURATION");
 			custom_data_config_set__t = new CustomDataConfigSet("TWO STAGE CANNON");
 
 			//添加配置项
-			c_d_c_s__s.add_line("MODE OF THE SCRIPT");
-			c_d_c_s__s.add_config_item(nameof(script_mode), () => script_mode, x => { script_mode = (ScriptMode)x; });
+			custom_data_config_set__script.add_line("MODE OF THE SCRIPT");
+			custom_data_config_set__script.add_config_item(nameof(script_mode), () => script_mode, x => { script_mode = (ScriptMode)x; });
 
-			c_d_c_s__s.add_line("DEFAULT MODE FOR FIRING");
-			c_d_c_s__s.add_config_item(nameof(fire_mode__intra_group_default), () => fire_mode__intra_group_default, x => { fire_mode__intra_group_default = (FireMode)x; });
-			c_d_c_s__s.add_config_item(nameof(fire_mode__inter_group_default), () => fire_mode__inter_group_default, x => { fire_mode__inter_group_default = (FireMode)x; });
+			custom_data_config_set__script.add_line("DEFAULT MODE FOR FIRING");
+			custom_data_config_set__script.add_config_item(nameof(fire_mode__intra_group_default), () => fire_mode__intra_group_default, x => { fire_mode__intra_group_default = (FireMode)x; });
+			custom_data_config_set__script.add_config_item(nameof(fire_mode__inter_group_default), () => fire_mode__inter_group_default, x => { fire_mode__inter_group_default = (FireMode)x; });
 
-			c_d_c_s__s.add_line("INDEXES OF CANNON AND GROUP SIZE");
-			c_d_c_s__s.add_config_item(nameof(index__cannon_begin), () => index__cannon_begin, x => { index__cannon_begin = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(index__cannon_end), () => index__cannon_end, x => { index__cannon_end = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(number__cannons_in_group), () => number__cannons_in_group, x => { number__cannons_in_group = (int)x; });
+			custom_data_config_set__script.add_line("INDEXES OF CANNON AND GROUP SIZE");
+			custom_data_config_set__script.add_config_item(nameof(index__cannon_begin), () => index__cannon_begin, x => { index__cannon_begin = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(index__cannon_end), () => index__cannon_end, x => { index__cannon_end = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(number__cannons_in_group), () => number__cannons_in_group, x => { number__cannons_in_group = (int)x; });
 
-			c_d_c_s__s.add_line("TAG OF THE GROUP NAME");
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_pistons_group), () => tag__cannon_pistons_group, x => { tag__cannon_pistons_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_releasers_group), () => tag__cannon_releasers_group, x => { tag__cannon_releasers_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_detachers_group), () => tag__cannon_detachers_group, x => { tag__cannon_detachers_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_shell_loaders_group), () => tag__cannon_shell_loaders_group, x => { tag__cannon_shell_loaders_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_shell_warheads_group), () => tag__cannon_shell_warheads_group, x => { tag__cannon_shell_warheads_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_locator_group), () => tag__cannon_locator_group, x => { tag__cannon_locator_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_shell_projector_group), () => tag__cannon_shell_projector_group, x => { tag__cannon_shell_projector_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_shell_welders_group), () => tag__cannon_shell_welders_group, x => { tag__cannon_shell_welders_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_fire_indicators_group), () => tag__cannon_fire_indicators_group, x => { tag__cannon_fire_indicators_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__postfix_cannon_status_indicator), () => tag__postfix_cannon_status_indicator, x => { tag__postfix_cannon_status_indicator = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__custom_interface_timer_0), () => tag__custom_interface_timer_0, x => { tag__custom_interface_timer_0 = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__custom_interface_timer_1), () => tag__custom_interface_timer_1, x => { tag__custom_interface_timer_1 = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__info_displays_group), () => tag__info_displays_group, x => { tag__info_displays_group = (string)x; });
-			c_d_c_s__s.add_config_item(nameof(tag__cannon_speed_limit_breaker_group), () => tag__cannon_speed_limit_breaker_group, x => { tag__cannon_speed_limit_breaker_group = (string)x; });
+			custom_data_config_set__script.add_line("TAG OF THE GROUP NAME");
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_pistons_group), () => tag__cannon_pistons_group, x => { tag__cannon_pistons_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_releasers_group), () => tag__cannon_releasers_group, x => { tag__cannon_releasers_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_detachers_group), () => tag__cannon_detachers_group, x => { tag__cannon_detachers_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_warheads_group), () => tag__cannon_shell_warheads_group, x => { tag__cannon_shell_warheads_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_locator_group), () => tag__cannon_locator_group, x => { tag__cannon_locator_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_projector_group), () => tag__cannon_shell_projector_group, x => { tag__cannon_shell_projector_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_shell_welders_group), () => tag__cannon_shell_welders_group, x => { tag__cannon_shell_welders_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_fire_indicators_group), () => tag__cannon_fire_indicators_group, x => { tag__cannon_fire_indicators_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__postfix_cannon_status_indicator), () => tag__postfix_cannon_status_indicator, x => { tag__postfix_cannon_status_indicator = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__custom_interface_timer_0), () => tag__custom_interface_timer_0, x => { tag__custom_interface_timer_0 = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__custom_interface_timer_1), () => tag__custom_interface_timer_1, x => { tag__custom_interface_timer_1 = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__info_displays_group), () => tag__info_displays_group, x => { tag__info_displays_group = (string)x; });
+			custom_data_config_set__script.add_config_item(nameof(tag__cannon_speed_limit_breaker_group), () => tag__cannon_speed_limit_breaker_group, x => { tag__cannon_speed_limit_breaker_group = (string)x; });
 
-			c_d_c_s__s.add_line("FUNCTIONS SWITCH");
-			c_d_c_s__s.add_config_item(nameof(flag__auto_activate_shell), () => flag__auto_activate_shell, x => { flag__auto_activate_shell = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_start_warhead_countdown), () => flag__auto_start_warhead_countdown, x => { flag__auto_start_warhead_countdown = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_toggle_welders_onoff), () => flag__auto_toggle_welders_onoff, x => { flag__auto_toggle_welders_onoff = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_0), () => flag__auto_trigger_custom_interface_timer_0, x => { flag__auto_trigger_custom_interface_timer_0 = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_1), () => flag__auto_trigger_custom_interface_timer_1, x => { flag__auto_trigger_custom_interface_timer_1 = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_2), () => flag__auto_trigger_custom_interface_timer_2, x => { flag__auto_trigger_custom_interface_timer_2 = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_3), () => flag__auto_trigger_custom_interface_timer_3, x => { flag__auto_trigger_custom_interface_timer_3 = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_4), () => flag__auto_trigger_custom_interface_timer_4, x => { flag__auto_trigger_custom_interface_timer_4 = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_check), () => flag__auto_check, x => { flag__auto_check = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__auto_reload), () => flag__auto_reload, x => { flag__auto_reload = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__reload_once_after_script_initialization), () => flag__reload_once_after_script_initialization, x => { flag__reload_once_after_script_initialization = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__reload_if_cannon_is_not_ready_when_fire), () => flag__reload_if_cannon_is_not_ready_when_fire, x => { flag__reload_if_cannon_is_not_ready_when_fire = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__enable_two_stage_mode), () => flag__enable_two_stage_mode, x => { flag__enable_two_stage_mode = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__enable_shell_disconnection), () => flag__enable_shell_disconnection, x => { flag__enable_shell_disconnection = (bool)x; });
-			c_d_c_s__s.add_config_item(nameof(flag__enable_shell_integrity_check), () => flag__enable_shell_integrity_check, x => { flag__enable_shell_integrity_check = (bool)x; });
+			custom_data_config_set__script.add_line("FUNCTIONS SWITCH");
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_activate_shell), () => flag__auto_activate_shell, x => { flag__auto_activate_shell = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_start_warhead_countdown), () => flag__auto_start_warhead_countdown, x => { flag__auto_start_warhead_countdown = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_toggle_welders_onoff), () => flag__auto_toggle_welders_onoff, x => { flag__auto_toggle_welders_onoff = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_0), () => flag__auto_trigger_custom_interface_timer_0, x => { flag__auto_trigger_custom_interface_timer_0 = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_trigger_custom_interface_timer_1), () => flag__auto_trigger_custom_interface_timer_1, x => { flag__auto_trigger_custom_interface_timer_1 = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_check), () => flag__auto_check, x => { flag__auto_check = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__auto_reload), () => flag__auto_reload, x => { flag__auto_reload = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__reload_once_after_script_initialization), () => flag__reload_once_after_script_initialization, x => { flag__reload_once_after_script_initialization = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_two_stage_mode), () => flag__enable_two_stage_mode, x => { flag__enable_two_stage_mode = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_shell_disconnection), () => flag__enable_shell_disconnection, x => { flag__enable_shell_disconnection = (bool)x; });
+			custom_data_config_set__script.add_config_item(nameof(flag__enable_shell_integrity_check), () => flag__enable_shell_integrity_check, x => { flag__enable_shell_integrity_check = (bool)x; });
 
-			c_d_c_s__s.add_line("EXECUTION CYCLE OF SOME FUNCTIONS");
-			c_d_c_s__s.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(period__auto_fire), () => period__auto_fire, x => { period__auto_fire = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(period__update_output), () => period__update_output, x => { period__update_output = (int)x; });
+			custom_data_config_set__script.add_line("EXECUTION CYCLE OF SOME FUNCTIONS");
+			custom_data_config_set__script.add_config_item(nameof(period__auto_check), () => period__auto_check, x => { period__auto_check = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(period__auto_fire), () => period__auto_fire, x => { period__auto_fire = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(period__update_output), () => period__update_output, x => { period__update_output = (int)x; });
 
-			c_d_c_s__s.add_line("DELAY IN EXECUTING CANNON ACTION");
-			c_d_c_s__s.add_config_item(nameof(delay__release), () => delay__release, x => { delay__release = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__detach_begin), () => delay__detach_begin, x => { delay__detach_begin = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__detach), () => delay__detach, x => { delay__detach = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__detach_end), () => delay__detach_end, x => { delay__detach_end = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__try_activate_shell), () => delay__try_activate_shell, x => { delay__try_activate_shell = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__try_disconnect_shell), () => delay__try_disconnect_shell, x => { delay__try_disconnect_shell = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__pistons_extend), () => delay__pistons_extend, x => { delay__pistons_extend = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__attach), () => delay__attach, x => { delay__attach = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__pistons_retract), () => delay__pistons_retract, x => { delay__pistons_retract = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__load_shell__attach), () => delay__load_shell__attach, x => { delay__load_shell__attach = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__load_shell__dettach), () => delay__load_shell__dettach, x => { delay__load_shell__dettach = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__custom_interface_timer_0), () => delay__custom_interface_timer_0, x => { delay__custom_interface_timer_0 = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__custom_interface_timer_1), () => delay__custom_interface_timer_1, x => { delay__custom_interface_timer_1 = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__custom_interface_timer_2), () => delay__custom_interface_timer_2, x => { delay__custom_interface_timer_2 = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__custom_interface_timer_3), () => delay__custom_interface_timer_3, x => { delay__custom_interface_timer_3 = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__custom_interface_timer_4), () => delay__custom_interface_timer_4, x => { delay__custom_interface_timer_4 = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__done_loading), () => delay__done_loading, x => { delay__done_loading = (int)x; });
+			custom_data_config_set__script.add_line("DELAY IN EXECUTING CANNON ACTION");
+			custom_data_config_set__script.add_config_item(nameof(delay__release), () => delay__release, x => { delay__release = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach_begin), () => delay__detach_begin, x => { delay__detach_begin = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach), () => delay__detach, x => { delay__detach = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__detach_end), () => delay__detach_end, x => { delay__detach_end = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__try_activate_shell), () => delay__try_activate_shell, x => { delay__try_activate_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__try_disconnect_shell), () => delay__try_disconnect_shell, x => { delay__try_disconnect_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pistons_extend), () => delay__pistons_extend, x => { delay__pistons_extend = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__attach), () => delay__attach, x => { delay__attach = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pistons_retract), () => delay__pistons_retract, x => { delay__pistons_retract = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__custom_interface_timer_0), () => delay__custom_interface_timer_0, x => { delay__custom_interface_timer_0 = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__custom_interface_timer_1), () => delay__custom_interface_timer_1, x => { delay__custom_interface_timer_1 = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__done_loading), () => delay__done_loading, x => { delay__done_loading = (int)x; });
 
-			c_d_c_s__s.add_config_item(nameof(delay__first_reload), () => delay__first_reload, x => { delay__first_reload = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__pausing), () => delay__pausing, x => { delay__pausing = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(delay__attach_after_release_on_reloead), () => delay__attach_after_release_on_reloead, x => { delay__attach_after_release_on_reloead = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__first_reload), () => delay__first_reload, x => { delay__first_reload = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(delay__pausing), () => delay__pausing, x => { delay__pausing = (int)x; });
 
-			c_d_c_s__s.add_line("ABOUT SHELL ACTIVATION");
-			c_d_c_s__s.add_config_item(nameof(distance__warhead_savety_lock), () => distance__warhead_savety_lock, x => { distance__warhead_savety_lock = (double)x; });
-			c_d_c_s__s.add_config_item(nameof(number__warhead_countdown_seconds), () => number__warhead_countdown_seconds, x => { number__warhead_countdown_seconds = (double)x; });
-			c_d_c_s__s.add_config_item(nameof(time__disconnecting_shell), () => time__disconnecting_shell, x => { time__disconnecting_shell = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(time__pistons_stretching), () => time__pistons_stretching, x => { time__pistons_stretching = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(count__total_blocks_in_detach_grid), () => count__total_blocks_in_detach_grid, x => { count__total_blocks_in_detach_grid = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(count__total_blocks_in_shell_loaders_grid), () => count__total_blocks_in_shell_loaders_grid, x => { count__total_blocks_in_shell_loaders_grid = (int)x; });
-			c_d_c_s__s.add_config_item(nameof(times__max_delay), () => times__max_delay, x => { times__max_delay = (int)x; });
+			custom_data_config_set__script.add_line("ABOUT SHELL ACTIVATION");
+			custom_data_config_set__script.add_config_item(nameof(distance__warhead_savety_lock), () => distance__warhead_savety_lock, x => { distance__warhead_savety_lock = (double)x; });
+			custom_data_config_set__script.add_config_item(nameof(number__warhead_countdown_seconds), () => number__warhead_countdown_seconds, x => { number__warhead_countdown_seconds = (double)x; });
+			custom_data_config_set__script.add_config_item(nameof(time__disconnecting_shell), () => time__disconnecting_shell, x => { time__disconnecting_shell = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(count__total_blocks_in_detach_grid), () => count__total_blocks_in_detach_grid, x => { count__total_blocks_in_detach_grid = (int)x; });
+			custom_data_config_set__script.add_config_item(nameof(times__max_delay), () => times__max_delay, x => { times__max_delay = (int)x; });
 
 			//config_set__t.add_line("ABOUT CHARGE-TWICE CANNON");
 
@@ -1155,7 +1072,7 @@ namespace AMCCS_DEV
 			custom_data_config_set__t.add_config_item(nameof(delay__enable_fixators), () => delay__enable_fixators, x => { delay__enable_fixators = (int)x; });
 			custom_data_config_set__t.add_config_item(nameof(delay__minor_pistons_retract), () => delay__minor_pistons_retract, x => { delay__minor_pistons_retract = (int)x; });
 
-			custom_data_config__script.add_config_set(c_d_c_s__s);
+			custom_data_config__script.add_config_set(custom_data_config_set__script);
 
 			custom_data_config__script.parse_custom_data();
 			if (flag__enable_two_stage_mode)
@@ -1170,8 +1087,7 @@ namespace AMCCS_DEV
 			//检查必要编组的标签
 			if (tag__cannon_pistons_group.Length == 0
 				|| tag__cannon_releasers_group.Length == 0
-				|| tag__cannon_detachers_group.Length == 0
-				|| tag__cannon_shell_loaders_group.Length == 0)
+				|| tag__cannon_detachers_group.Length == 0)
 			{
 				info = "<error_config> key tag of group name is empty";
 				return info;
@@ -1203,25 +1119,21 @@ namespace AMCCS_DEV
 				return info;
 			}
 
-			// 取消检查, 这些参数为负数时, 对应动作将不会执行
-			//if (!check_value(delay__release)
-			//	|| !check_value(delay__detach_begin)
-			//	|| !check_value(delay__detach)
-			//	|| !check_value(delay__detach_end)
-			//	|| !check_value(delay__pistons_extend)
-			//	|| !check_value(delay__attach)
-			//	|| !check_value(delay__pistons_retract)
-			//	|| !check_value(delay__custom_interface_timer_0)
-			//	|| !check_value(delay__custom_interface_timer_1)
-			//	|| !check_value(delay__custom_interface_timer_2)
-			//	|| !check_value(delay__custom_interface_timer_3)
-			//	|| !check_value(delay__custom_interface_timer_4)
-			//	|| !check_value(delay__done_loading)
-			//	)
-			//{
-			//	info = "<error_config> delay cannot be less than 1 or more than 1000";
-			//	return info;
-			//}
+			if (!check_value(delay__release)
+				|| !check_value(delay__detach_begin)
+				|| !check_value(delay__detach)
+				|| !check_value(delay__detach_end)
+				|| !check_value(delay__pistons_extend)
+				|| !check_value(delay__attach)
+				|| !check_value(delay__pistons_retract)
+				|| !check_value(delay__custom_interface_timer_0)
+				|| !check_value(delay__custom_interface_timer_1)
+				|| !check_value(delay__done_loading)
+				)
+			{
+				info = "<error_config> delay cannot be less than 1 or more than 1000";
+				return info;
+			}
 
 			if (number__warhead_countdown_seconds < 0.0 || number__warhead_countdown_seconds > 300.0)
 			{
@@ -1296,12 +1208,12 @@ namespace AMCCS_DEV
 			//枚举 火炮状态
 			public enum CannonStatus
 			{
-				NotReady,// 非就绪 (活塞炮结构完备, 但状态异常. 例如活塞处于非蓄力状态等等)
-				Ready,// 就绪 (结构完备, 状态也完备. 可以射击)
-				Running,// 装填中/运行中 (射击, 并进入装填, 此时程序控制活塞炮执行动作)
-				BrokenDown,// 故障 (结构不完备, 运行中发现. 转子未能成功附着, 或者关键元件失去功能等)
-				Invalid,// 不可用 (结构不完备, 初始化时发现. 火炮初始化时缺少关键元件)
-				Pausing,// 暂停中 (活塞伸展后短暂暂停, 或其它原因导致的暂停)
+				NotReady,//非就绪(活塞处于非蓄力状态等等)
+				Ready,//就绪(可以射击)
+				Loading,//装填中/运行中(射击后进入装填)
+				BrokenDown,//故障(转子未能成功附着, 或者关键元件失去功能)
+				Invalid,//不可用(火炮初始化时缺少关键元件)
+				Pausing,//暂停中(活塞伸展后短暂暂停)
 			}
 
 			//枚举 火炮指令(火炮接下来需要执行的指令)
@@ -1315,10 +1227,9 @@ namespace AMCCS_DEV
 			//分离模式
 			public enum DetachMode
 			{
-				GatlinDestroy,//破坏分离 (加特林等)
-				GrinderDestroy,//破坏分离 (切割机)
-				SubGrid,//子网格分离(转子活塞等)
-				MergeBlock,//常规分离 (合并块)
+				GatlinDestroy,//破坏分离(加特林)
+				GrinderDestroy,//破坏分离(切割机)
+				Normal,//常规分离(合并块)
 				None,//哨兵
 			}
 
@@ -1339,8 +1250,6 @@ namespace AMCCS_DEV
 			IMyBlockGroup group_releasers;
 			//编组 分离元件
 			IMyBlockGroup group_detachers;
-			//编组 供弹元件
-			IMyBlockGroup group__shell_loaders;
 			//编组 破速限元件
 			IMyBlockGroup group__speed_limit_breaker;
 			//编组 弹头元件
@@ -1359,17 +1268,17 @@ namespace AMCCS_DEV
 			IMyBlockGroup group__cannon_shell_projector;
 
 			//列表 活塞元件
-			List<IMyPistonBase> list__pistons = new List<IMyPistonBase>();
+			List<IMyPistonBase> list_pistons = new List<IMyPistonBase>();
 			//列表 释放元件
-			List<IMyMechanicalConnectionBlock> list__releasers = new List<IMyMechanicalConnectionBlock>();
+			List<IMyMechanicalConnectionBlock> list_releasers = new List<IMyMechanicalConnectionBlock>();
 			//列表 分离元件
-			List<IMyFunctionalBlock> list__detachers = new List<IMyFunctionalBlock>();
-			//列表 供弹元件
-			List<IMyShipMergeBlock> list__shell_loaders = new List<IMyShipMergeBlock>();
+			List<IMyFunctionalBlock> list_detachers = new List<IMyFunctionalBlock>();
 			//列表 弹头元件
-			List<IMyWarhead> list__warheads = new List<IMyWarhead>();
+			List<IMyWarhead> list_warheads = new List<IMyWarhead>();
 			//列表 焊接器元件
-			List<IMyShipWelder> list__welders = new List<IMyShipWelder>();
+			List<IMyShipWelder> list_welders = new List<IMyShipWelder>();
+			//列表 垂直关节元件
+			List<IMyMotorStator> list__vertical_joints = new List<IMyMotorStator>();
 			//列表 次要活塞元件
 			List<IMyPistonBase> list__minor_pistons = new List<IMyPistonBase>();
 			//列表 合并块元件
@@ -1388,12 +1297,6 @@ namespace AMCCS_DEV
 			IMyTimerBlock timer__custom_interface_0;
 			//定时器 用户定时器接口1
 			IMyTimerBlock timer__custom_interface_1;
-			//定时器 用户定时器接口2
-			IMyTimerBlock timer__custom_interface_2;
-			//定时器 用户定时器接口3
-			IMyTimerBlock timer__custom_interface_3;
-			//定时器 用户定时器接口4
-			IMyTimerBlock timer__custom_interface_4;
 			//定位器 火炮分离部件网格
 			IMyTerminalBlock locator__cannon_detach_part_grid;
 			// 投影仪 火炮炮弹 (焊接)
@@ -1403,9 +1306,6 @@ namespace AMCCS_DEV
 
 			//网格 上一个炮弹的网格
 			IMyCubeGrid grid__previous_shell;
-
-			// 是否启用 (默认为真)
-			public bool flag__enabled { get; private set; } = true;
 
 			//索引 活塞炮的编号
 			public int index_cannon { get; private set; } = -1;
@@ -1423,12 +1323,6 @@ namespace AMCCS_DEV
 			bool flag__auto_trigger_custom_interface_timer_0 = true;
 			//标记 是否 自动触发用户接口定时器1
 			bool flag__auto_trigger_custom_interface_timer_1 = true;
-			//标记 是否 自动触发用户接口定时器2
-			bool flag__auto_trigger_custom_interface_timer_2 = false;
-			//标记 是否 自动触发用户接口定时器3
-			bool flag__auto_trigger_custom_interface_timer_3 = false;
-			//标记 是否 自动触发用户接口定时器4
-			bool flag__auto_trigger_custom_interface_timer_4 = false;
 			//标记 是否 启用二段蓄力
 			bool flag__enable_two_stage_mode = false;
 			//标记 是否 启用主动断开炮弹连接功能
@@ -1436,29 +1330,12 @@ namespace AMCCS_DEV
 			//标记 是否 启用炮弹完整性检查
 			bool flag__enable_shell_integrity_check = false;
 
-			//标记 是否 是固定式焊接类型的火炮 (自动识别)
-			bool flag__fixed_welding = false;
-			//标记 是否 在释放前分离供弹元件 (自动识别)
-			bool flag__load_shell_detach_before_release = false;
-
 			//标记 是否 已经暂停过
-			bool flag__paused = false;
-			//
-			bool flag__need_detach = false;
+			bool flag_paused = false;
 			//标记 是否 全部释放器附着
 			bool flag__all_releasers_attached = false;
 			//标记 是否 全部固定器都被启用
 			bool flag__all_fixators_enabled = false;
-			//标记 是否 分离网格的结构完备
-			bool flag__detach_grid_complete = false;
-			// 标记 是否 供弹元件连接中 (全部)
-			bool flag__shell_loaders_all_connected = false;
-			// 标记 是否 炮弹分离元件连接中 (全部)
-			bool flag__shell_detachers_all_connected = false;
-			// 标记 是否 供弹元件连接中 (至少一个)
-			bool flag__shell_loaders_connected = false;
-			// 标记 是否 炮弹分离元件连接中 (至少一个)
-			bool flag__shell_detachers_connected = false;
 
 			//为了对抗K社的BUG而增加的两个变量
 			//时刻 附着固定器
@@ -1467,34 +1344,29 @@ namespace AMCCS_DEV
 			int delay__detach_releasers = -1;
 			//时刻 附着破限元件
 			int delay__detach_speed_limit_breakers = -1;
-
-			// 重载时的特殊时间
-
-			//时刻 重载时释放 (释放器) (自动计算)
+			//时刻 重载时释放 (释放器)
 			int delay__release_on_reload = 1;
-			//时刻 重载时附着 (释放器) (自动计算)
-			int delay__attach_on_reload = 1;
 
 			//次数 距离下一次 检查
 			int times__before_next_check = 0;
 			//次数 延迟(用于延迟重载和强制暂停)
-			int times__delay = 0;
+			int times_delay = 0;
 
 			//计数 状态计数
-			public int count__status { get; private set; } = 1;
+			public int count_status { get; private set; } = 1;
 			//计数 删一次射击时的弹头数
 			int count__warheads_on_last_fire = 0;
-			//计数 因等待焊接而延迟的次数
-			int count__delay_by_shell_check = 0;
+			//计数 因等待焊接器而延迟的次数
+			int count_delay = 0;
 
 			//状态 火炮状态
-			public CannonStatus status__cannon { get; private set; } = CannonStatus.NotReady;
+			public CannonStatus status_cannon { get; private set; } = CannonStatus.NotReady;
 			//指令 火炮操作指令
-			public CannonCommand command__cannon { get; private set; } = CannonCommand.None;
+			public CannonCommand command_cannon { get; private set; } = CannonCommand.None;
 			//模式 分离模式
-			DetachMode mode__detach = DetachMode.None;
+			DetachMode mode_detach = DetachMode.None;
 			//模式 固定模式(二段式火炮)
-			FixMode mode__fix = FixMode.None;
+			FixMode mode_fix = FixMode.None;
 
 			//字符串构建器 对象初始化时的信息
 			StringBuilder string_builder__init_info = new StringBuilder();
@@ -1527,25 +1399,25 @@ namespace AMCCS_DEV
 				if (group_pistons == null)
 				{
 					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
-					status__cannon = CannonStatus.Invalid;
+					status_cannon = CannonStatus.Invalid;
 				}
 				else
 				{
 					//添加到列表
-					group_pistons.GetBlocksOfType<IMyPistonBase>(list__pistons);
+					group_pistons.GetBlocksOfType<IMyPistonBase>(list_pistons);
 					//检查
-					if (list__pistons.Count == 0)
+					if (list_pistons.Count == 0)
 					{
 						string_builder__init_info.Append($"<error>\nno any piston found in group \"{name_group}\"\n");
-						status__cannon = CannonStatus.Invalid;
+						status_cannon = CannonStatus.Invalid;
 					}
 					else
 					{
-						foreach (var item in list__pistons)//逐个遍历活塞列表, 查找名称以指定规则结尾的活塞
+						foreach (var item in list_pistons)//逐个遍历活塞列表, 查找名称以指定规则结尾的活塞
 							if (item.CustomName.EndsWith(program.tag__postfix_cannon_status_indicator))
 								piston__status_indicator = item;//设置指示器
 						if (piston__status_indicator == null)//如果 没有找到以指定后缀命名的活塞
-							piston__status_indicator = list__pistons[0];//将指示器设置为列表中第一个活塞
+							piston__status_indicator = list_pistons[0];//将指示器设置为列表中第一个活塞
 					}
 				}
 
@@ -1560,17 +1432,17 @@ namespace AMCCS_DEV
 				if (group_releasers == null)
 				{
 					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
-					status__cannon = CannonStatus.Invalid;
+					status_cannon = CannonStatus.Invalid;
 				}
 				else
 				{
 					//添加到列表
-					group_releasers.GetBlocksOfType<IMyMechanicalConnectionBlock>(list__releasers);
+					group_releasers.GetBlocksOfType<IMyMechanicalConnectionBlock>(list_releasers);
 					//检查
-					if (list__releasers.Count == 0)
+					if (list_releasers.Count == 0)
 					{
 						string_builder__init_info.Append($"<error>\nno any rotor or hinge found in group \"{name_group}\"\n");
-						status__cannon = CannonStatus.Invalid;
+						status_cannon = CannonStatus.Invalid;
 					}
 					//else
 					//	rotor__status_indicator = list_releasers[0];//将第一个设为释放元件指示器
@@ -1587,69 +1459,34 @@ namespace AMCCS_DEV
 				if (group_detachers == null)
 				{
 					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\"\n");
-					status__cannon = CannonStatus.Invalid;
+					status_cannon = CannonStatus.Invalid;
 				}
 				else
 				{
 					//添加到列表
-					group_detachers.GetBlocksOfType<IMyFunctionalBlock>(list__detachers);
+					group_detachers.GetBlocksOfType<IMyFunctionalBlock>(list_detachers);
 					//检查
-					if (list__releasers.Count == 0)
+					if (list_releasers.Count == 0)
 					{
 						string_builder__init_info.Append($"<error>\nno gatlin or merge bLock found in group \"{name_group}\"\n");
-						status__cannon = CannonStatus.Invalid;
+						status_cannon = CannonStatus.Invalid;
 					}
 					else
 					{
-						var temp = list__detachers[0];
+						var temp = list_detachers[0];
 
 						//自动判断分离模式, 使用列表的第一个对象的类型进行判断
 						if (temp is IMySmallGatlingGun)
-							mode__detach = DetachMode.GatlinDestroy;
+							mode_detach = DetachMode.GatlinDestroy;
 						else if (temp is IMyShipMergeBlock)
-							mode__detach = DetachMode.MergeBlock;
+							mode_detach = DetachMode.Normal;
 						else if (temp is IMyShipGrinder)
-							mode__detach = DetachMode.GrinderDestroy;
-						else if (temp is IMyMechanicalConnectionBlock)
-							mode__detach = DetachMode.SubGrid;
+							mode_detach = DetachMode.GrinderDestroy;
 						else
 							//脚本不支持的分离模式
-							status__cannon = CannonStatus.Invalid;
+							status_cannon = CannonStatus.Invalid;
 					}
 				}
-
-				/********************
-				* 获取供弹元件
-				********************/
-				//拼接字符串, 得到编组名称
-				name_group = this.program.tag__cannon_shell_loaders_group + this.index_cannon;
-				//获取活塞元件编组
-				group__shell_loaders = program.GridTerminalSystem.GetBlockGroupWithName(name_group);
-				//检查
-				if (group__shell_loaders == null)
-				{
-					string_builder__init_info.Append($"<error>\nno group found with name \"{name_group}\", ignored, make sure this is not fixed-welding type.\n");
-					//flag__fixed_welding = false;
-				}
-				else
-				{
-					//添加到列表
-					group__shell_loaders.GetBlocksOfType<IMyShipMergeBlock>(list__shell_loaders);
-					//检查
-					if (list__releasers.Count == 0)
-						string_builder__init_info.Append($"<error>\nno any merge block found in group \"{name_group}\"\n");
-					else
-					{
-						if (mode__detach == DetachMode.SubGrid || mode__detach == DetachMode.MergeBlock)
-							flag__fixed_welding = true;
-						else
-						{
-							status__cannon = CannonStatus.Invalid; // 固定式焊接火炮只支持子网格/合并块分离
-							string_builder__init_info.Append($"<error>\ndetach mode of fixed-welding cannon can only be SubGrid or MergeBlock.\n");
-						}
-					}
-				}
-
 
 				/********************
 				* 获取分离部件网格定位器
@@ -1659,8 +1496,7 @@ namespace AMCCS_DEV
 				//检查
 				if (group__cannon_detach_part_grid_locator == null)
 				{
-					string_builder__init_info.Append
-						($"<warning>\nno group found with name \"{name_group}\".\nNote that if locator is not set, some functions will not be available\n");
+					string_builder__init_info.Append($"<warning>\nno group found with name \"{name_group}\"\n");
 				}
 				else
 				{
@@ -1668,7 +1504,7 @@ namespace AMCCS_DEV
 					group__cannon_detach_part_grid_locator.GetBlocksOfType<IMyTerminalBlock>(list_temp);
 					locator__cannon_detach_part_grid = list_temp.Count == 0 ? null : list_temp[0];
 					if (locator__cannon_detach_part_grid == null)
-						string_builder__init_info.Append($"<warning>\nno locator found in group \"{name_group}\", ignored.\nNote that if locator is not set, some functions will not be available\n");
+						string_builder__init_info.Append($"<warning>\nno locator found in group \"{name_group}\", ignored\n");
 				}
 
 				/********************
@@ -1705,9 +1541,9 @@ namespace AMCCS_DEV
 				else
 				{
 					//添加到列表
-					group_welders.GetBlocksOfType<IMyShipWelder>(list__welders);
+					group_welders.GetBlocksOfType<IMyShipWelder>(list_welders);
 					//检查
-					if (list__welders.Count == 0)
+					if (list_welders.Count == 0)
 						string_builder__init_info.Append($"<warning>\nno any welder found in group \"{name_group}\"\n");
 				}
 
@@ -1715,49 +1551,16 @@ namespace AMCCS_DEV
 				* 获取用户自定义接口定时器
 				********************/
 				//接口0
-				if (flag__auto_trigger_custom_interface_timer_0)
-				{
-					name_group = this.program.tag__custom_interface_timer_0 + this.index_cannon;
-					timer__custom_interface_0 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
-					if (timer__custom_interface_0 == null)
-						string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
-				}
+				name_group = this.program.tag__custom_interface_timer_0 + this.index_cannon;
+				timer__custom_interface_0 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
+				if (timer__custom_interface_0 == null)
+					string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
 
 				//接口1
-				if (flag__auto_trigger_custom_interface_timer_1)
-				{
-					name_group = this.program.tag__custom_interface_timer_1 + this.index_cannon;
-					timer__custom_interface_1 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
-					if (timer__custom_interface_1 == null)
-						string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
-				}
-
-				//接口2
-				if (flag__auto_trigger_custom_interface_timer_2)
-				{
-					name_group = this.program.tag__custom_interface_timer_2 + this.index_cannon;
-					timer__custom_interface_2 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
-					if (timer__custom_interface_2 == null)
-						string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
-				}
-
-				//接口3
-				if (flag__auto_trigger_custom_interface_timer_3)
-				{
-					name_group = this.program.tag__custom_interface_timer_3 + this.index_cannon;
-					timer__custom_interface_3 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
-					if (timer__custom_interface_3 == null)
-						string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
-				}
-
-				//接口4
-				if (flag__auto_trigger_custom_interface_timer_4)
-				{
-					name_group = this.program.tag__custom_interface_timer_4 + this.index_cannon;
-					timer__custom_interface_4 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
-					if (timer__custom_interface_4 == null)
-						string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
-				}
+				name_group = this.program.tag__custom_interface_timer_1 + this.index_cannon;
+				timer__custom_interface_1 = program.GridTerminalSystem.GetBlockWithName(name_group) as IMyTimerBlock;
+				if (timer__custom_interface_1 == null)
+					string_builder__init_info.Append($"<warning>\nno timer found with name \"{name_group}\", ignored\n");
 
 				//启用炮弹分离功能
 				if (program.flag__enable_shell_disconnection)
@@ -1786,8 +1589,6 @@ namespace AMCCS_DEV
 							// 破限机构是活塞时开启炮弹断连功能
 							if (block__speed_limit_breaker is IMyPistonBase)
 								flag__enable_shell_disconnection = true;
-							else
-								string_builder__init_info.Append($"<warning>\nno pistons found in group \"{name_group}\", ignored, but the relevant funtion will be disabled\n");
 						}
 					}
 				}
@@ -1815,7 +1616,7 @@ namespace AMCCS_DEV
 						//添加到列表
 						group__minor_pistons.GetBlocksOfType<IMyPistonBase>(list__minor_pistons);
 						//检查
-						if (list__pistons.Count == 0)
+						if (list_pistons.Count == 0)
 						{
 							string_builder__init_info.Append($"<warning>\nno any piston found in group \"{name_group}\", ignored , but the charge-twice mode will be disabled\n");
 							flag__enable_two_stage_mode = false;
@@ -1860,36 +1661,22 @@ namespace AMCCS_DEV
 
 							//自动判断分离模式, 使用列表的第一个对象的类型进行判断
 							if (temp is IMyShipMergeBlock)
-								mode__fix = FixMode.MergeBlock;
+								mode_fix = FixMode.MergeBlock;
 							else if (temp is IMyMechanicalConnectionBlock)
-								mode__fix = FixMode.MechanicalConnectionBlock;
+								mode_fix = FixMode.MechanicalConnectionBlock;
 							else
 								//脚本不支持的固定模式
 								flag__enable_two_stage_mode = false;
 						}
 					}
 				}
-
-				// 新代码
-				{
-                    // 自动计算重载时的参数
-
-                    // 重载时的释放时间, 应该在延迟结束 (也就是伸展结束) 后释放 // 二段式的额外时间增量
-                    delay__release_on_reload = 1 + (program.flag__enable_two_stage_mode ? program.delay__disable_fixators : program.delay__release);
-                    // 重载时的附着时间, 应该在延迟结束 (也就是伸展结束) 后附着
-                    delay__attach_on_reload = delay__release_on_reload + program.delay__attach_after_release_on_reloead;
-				}
-
-				// 旧代码
-				//{
-				//    // 默认情况是装填完成时间-活塞收缩时间, 也就是活塞伸缩时长
-				//    delay__release_on_reload = program.delay__done_loading - program.delay__pistons_retract;
-				//    // 如果超过附着时间, 则改为附着时间 - 1
-				//    if (delay__release_on_reload >= program.delay__attach)
-				//        delay__release_on_reload = program.delay__attach - 1;
-				//    if (delay__release_on_reload < 1)
-				//        delay__release_on_reload = 1;
-				//}
+				// 默认情况是装填完成时间-活塞收缩时间, 也就是活塞伸缩时长
+				delay__release_on_reload = program.delay__done_loading - program.delay__pistons_retract;
+				// 如果超过附着时间, 则改为附着时间
+				if (delay__release_on_reload >= program.delay__attach)
+					delay__release_on_reload = program.delay__attach - 1;
+				if (delay__release_on_reload < 1)
+					delay__release_on_reload = 1;
 
 				//大网格机械连接方块需要在附着前一帧释放, 否则无法附着
 				delay__detach_releasers = program.delay__attach - 1;
@@ -1897,23 +1684,21 @@ namespace AMCCS_DEV
 				delay__detach_fixators = program.delay__enable_fixators - 1;
 
 				//检查火炮是否可用
-				if (status__cannon == CannonStatus.Invalid)
+				if (status_cannon == CannonStatus.Invalid)
 					return;
 
 				//状态检查
 				if (program.flag__reload_once_after_script_initialization || piston__status_indicator.Status != PistonStatus.Retracted || !check_releasers_status())
 				{
-					status__cannon = CannonStatus.Pausing;//设置为暂停中
-					command__cannon = CannonCommand.Reload;//设置延迟装载命令
-					times__delay = program.delay__first_reload;//设置时刻时长
+					status_cannon = CannonStatus.Pausing;//设置为暂停中
+					command_cannon = CannonCommand.Reload;//设置延迟装载命令
+					times_delay = program.delay__first_reload;//设置时刻时长
 				}
 				else
-					status__cannon = CannonStatus.Ready;//设置为就绪状态
+					status_cannon = CannonStatus.Ready;//设置为就绪状态
 
 				//检查火炮内部功能开关
 
-				// 是否在释放前分离
-				flag__load_shell_detach_before_release = program.delay__load_shell__dettach < program.delay__release;
 				// 自动激活炮弹
 				flag__auto_activate_shell = program.flag__auto_activate_shell;
 				//自动检查炮弹分离状态
@@ -1923,7 +1708,7 @@ namespace AMCCS_DEV
 				flag__auto_toggle_welders_onoff =
 					program.flag__auto_toggle_welders_onoff
 					&& group_welders != null
-					&& list__welders.Count != 0;
+					&& list_welders.Count != 0;
 				//用户接口定时器0
 				flag__auto_trigger_custom_interface_timer_0 =
 					program.flag__auto_trigger_custom_interface_timer_0
@@ -1932,18 +1717,6 @@ namespace AMCCS_DEV
 				flag__auto_trigger_custom_interface_timer_1 =
 					program.flag__auto_trigger_custom_interface_timer_1
 					&& timer__custom_interface_1 != null;
-				//用户接口定时器2
-				flag__auto_trigger_custom_interface_timer_2 =
-					program.flag__auto_trigger_custom_interface_timer_2
-					&& timer__custom_interface_2 != null;
-				//用户接口定时器3
-				flag__auto_trigger_custom_interface_timer_3 =
-					program.flag__auto_trigger_custom_interface_timer_3
-					&& timer__custom_interface_3 != null;
-				//用户接口定时器4
-				flag__auto_trigger_custom_interface_timer_4 =
-					program.flag__auto_trigger_custom_interface_timer_4
-					&& timer__custom_interface_4 != null;
 				//炮弹完整性检查 (全局开启, 并且开启炮弹断连功能)
 				flag__enable_shell_integrity_check =
 					program.flag__enable_shell_integrity_check
@@ -1952,8 +1725,7 @@ namespace AMCCS_DEV
 
 			public void set_command(CannonCommand cmd)
 			{
-				command__cannon = cmd;
-				count__status = 1;
+				this.command_cannon = cmd;
 			}
 
 			public PistonStatus get_piston_indicator_status()
@@ -1968,11 +1740,11 @@ namespace AMCCS_DEV
 			public void update()
 			{
 				//检查火炮可用性
-				if (status__cannon == CannonStatus.Invalid)
+				if (status_cannon == CannonStatus.Invalid)
 					return;
 
-				// 自动检查, 开启时周期性执行
-				if (program.flag__auto_check && times__delay == 0)
+				//自动检查
+				if (program.flag__auto_check && times_delay == 0)
 				{
 					if (times__before_next_check == 0)
 					{
@@ -1982,302 +1754,229 @@ namespace AMCCS_DEV
 					--times__before_next_check;
 				}
 
-				// 下面的内容是状态转移部分
-				switch (status__cannon)
+				//根据当前状态执行操作
+				switch (status_cannon)
 				{
 					case CannonStatus.NotReady://非就绪状态
 					{
-						// 若传入射击指令则视为重载指令 (需要全局开启该功能)
-						if (program.flag__reload_if_cannon_is_not_ready_when_fire && command__cannon == CannonCommand.Fire)
-							command__cannon = CannonCommand.Reload;
-						// 非就绪状态仅接受重载指令 (和延迟重载) (结构完备但状态不完备, 因此不能射击, 必须重载)
-						if (command__cannon == CannonCommand.Reload)//立即重载
+						//非就绪状态仅接受重载指令(和延迟重载)
+						if (command_cannon == CannonCommand.Reload)//立即重载
 						{
 							//设置为运行状态
-							status__cannon = CannonStatus.Running;
-							run(); // 运行
-						}
-						break;
-					}
-					case CannonStatus.Ready://就绪状态
-					{
-						// 就绪状态可以接受所有指令, 可以重载也可以射击
-						if (command__cannon == CannonCommand.Fire)
-						{
-							//开火前检查一次
-							if (self_status_check())
-							{
-								//更新上一次射击的火炮索引
-								group.update_last_fire_index(index_cannon);
-
-								//设置为运行状态
-								status__cannon = CannonStatus.Running;
-                                // 更新射击计数
-								++program.count__fire;
-								run();
-							}
-						}
-						else if (command__cannon == CannonCommand.Reload)
-						{
-							//设置为运行状态
-							status__cannon = CannonStatus.Running;
+							status_cannon = CannonStatus.Loading;
 							//运行
 							run();
 						}
 						break;
 					}
-					case CannonStatus.Running://运行状态
+					case CannonStatus.Ready://就绪状态
 					{
-						run(); // 直接执行内部动作
+						//就绪状态可以接受所有指令
+						if (command_cannon == CannonCommand.Fire)
+						{
+							//开火前检查一次
+							if (!check_cannon_integrality() || !check_cannon_status())
+							{
+								status_cannon = CannonStatus.BrokenDown;
+							}
+							else
+							{
+								//更新上一次射击的火炮索引
+								group.update_last_fire_index(this.index_cannon);
+
+								//设置为运行状态
+								status_cannon = CannonStatus.Loading;
+								++program.count__fire;
+								run();
+							}
+						}
+						else if (command_cannon == CannonCommand.Reload)
+						{
+							//设置为运行状态
+							status_cannon = CannonStatus.Loading;
+							//运行
+							run();
+						}
+						break;
+					}
+					case CannonStatus.Loading://运行状态
+					{
+						run();
 						break;
 					}
 					case CannonStatus.Pausing://暂停中
 					{
-						--times__delay;
-						// 检查暂停次数 (帧数), 结束后继续运行
-						if (times__delay <= 0)
+						--times_delay;
+						if (times_delay <= 0)
 						{
+							//if (command_cannon == CannonCommand.Reload)
+							//	status_cannon = CannonStatus.Loading;
+							//else
+							//	status_cannon = CannonStatus.NotReady;// 跳转到重载
+
 							//继续运行
-							status__cannon = CannonStatus.Running;
-							times__delay = 0;//(冗余)
+							status_cannon = CannonStatus.Loading;
+							times_delay = 0;//(冗余)
 						}
 						break;
 					}
 					case CannonStatus.BrokenDown://故障
-					case CannonStatus.Invalid://不可用
-						break; // 处于故障状态和不可用状态的火炮不执行任何操作
+					case CannonStatus.Invalid://不可用	  
+						break;//处于故障状态和不可用状态的火炮不执行任何操作
 				}
 
 			}
-			// 自身状态检查 (返回是否通过检查) (周期执行)
-			// 该函数当处于 Running 状态时只会进行完整性检查
-			// 该函数不会检查分离网格状态 (炮弹状态)
-			public bool self_status_check()
+			//自身状态检查
+			public void self_status_check()
 			{
 				//检查完整性
 				if (!check_cannon_integrality())
 					//火炮不完整
-					status__cannon = CannonStatus.BrokenDown;
+					status_cannon = CannonStatus.BrokenDown;
 				else
 				{
 					//火炮完整
 
-					// 检查之前的状态
-					if (status__cannon == CannonStatus.BrokenDown)
-						// 之前不完整现在完整, 更新状态
-						status__cannon = CannonStatus.Ready;
-					if (status__cannon == CannonStatus.Ready)
+					//检查状态检查之前的状态
+					if (status_cannon == CannonStatus.BrokenDown)
+						//之前不完整现在完整, 更新状态
+						status_cannon = CannonStatus.Ready;
+
+					if (status_cannon == CannonStatus.Ready)
 					{
-						// 检查状态
+						//检查状态
 						if (!check_cannon_status())
-							status__cannon = CannonStatus.NotReady;
+							status_cannon = CannonStatus.NotReady;
+						else if (mode_detach != DetachMode.Normal)
+							//检查加特林或切割机是否处于关闭状态
+							foreach (var item in list_detachers)
+								if (item.Enabled)
+									item.Enabled = false;
 					}
-					else if (status__cannon == CannonStatus.NotReady)
+					else if (status_cannon == CannonStatus.NotReady)
 					{
 						//检查状态
 						if (check_cannon_status())
-							status__cannon = CannonStatus.Ready;
+							status_cannon = CannonStatus.Ready;
 						//尝试重载
 						if (program.flag__auto_reload)
-							command__cannon = CannonCommand.Reload;
+							command_cannon = CannonCommand.Reload;
 					}
 				}
-				return status__cannon == CannonStatus.Ready;
 			}
 
 			//设置立刻执行检查
-			public void self_check_immediately() => times__before_next_check = 0;
+			public void check_once_immediately() => times__before_next_check = 0;
 
-			// 设置是否启用
-			public void set_enabled(bool _flag__enabled = true)
-				=> flag__enabled = _flag__enabled;
-
-			// 设置指令后, 刚进入 Running 状态时的动作
-			private void before_running()
-			{
-				if (command__cannon == CannonCommand.Reload)
-				{
-					// 固定式焊接
-					if (flag__fixed_welding)
-					{
-						// 固定式焊接, 并且是重载命令, 需要检查炮弹状态并记录 (若是射击命令则释放前会检查, 这里无需检查)
-						int count = program.count__total_blocks_in_detach_grid + (flag__load_shell_detach_before_release ? program.count__total_blocks_in_shell_loaders_grid : 0);
-						check_detach_grid_status(count);
-						// 检查是否需要把状态异常的炮弹抛弃 (炮弹不完整, 分离器至少连接一个, 但合并块全部未连接)
-						if (!flag__detach_grid_complete && flag__shell_detachers_connected && !flag__shell_loaders_all_connected)
-						{
-							// 强制分离
-							detach_begin();
-							detach();
-							detach_end();
-							check_detach_grid_status(count); // 更新状态
-						}
-					}
-				}
-
-			}
-
-			// 内部动作执行函数
+			//内部动作执行函数
 			private void run()
 			{
-				if (command__cannon == CannonCommand.None)
-					return;// (理论上) 其它命令不会进入该函数, 该检查冗余
-
-				// 进入运行状态前
-				if (count__status == 1)
-					before_running();
-
-				// 重载过程中在合适的时候释放
-				if (command__cannon == CannonCommand.Reload && count__status == delay__release_on_reload)
+				if (command_cannon == CannonCommand.None)
+					return;
+				//重载过程中在合适的时候释放
+				if (command_cannon == CannonCommand.Reload && count_status == delay__release_on_reload)
 					release();//释放
-
-				// 正常的释放时间
-				if (count__status == program.delay__release)
-					if (command__cannon == CannonCommand.Fire)
+				if (count_status == program.delay__release)
+					if (command_cannon == CannonCommand.Fire)
 					{
-						// 射击 (释放) 前的炮弹检查
-						if (program.flag__enable_shell_integrity_check && !check_detach_grid_status(program.count__total_blocks_in_detach_grid))
+						//if (!check_projector_status())
+						if (program.flag__enable_shell_integrity_check && !check_detach_grid_status())
 						{
-							// 未通过对炮弹的检查
-							if (count__delay_by_shell_check >= program.times__max_delay) // 超过最大等待次数
+							if (count_delay >= program.times__max_delay)//最多等待次数
 							{
-								command__cannon = CannonCommand.Reload;//尝试重载
-								count__status = 1;
-								count__delay_by_shell_check = 0;
+								command_cannon = CannonCommand.Reload;//尝试重载
+								count_status = 1;
+								count_delay = 0;
 							}
 							else
 							{
 								// 炮弹完整性检查未通过
 								pause_sometime(1);//暂停一帧
-								++count__delay_by_shell_check;//等待次数+1
+								++count_delay;//等待次数+1
 							}
 							return;//强制退出
 						}
 						release();//释放
 					}
-					else if (command__cannon == CannonCommand.Reload)
+					else if (command_cannon == CannonCommand.Reload)
 					{
 						pistons_extend();//伸展
 						pause_sometime(program.delay__pausing);//强制性暂停时间
-						++count__status;//此处+1是为了避免下一次进入时继续 release
+						++this.count_status;
 						return;//强制退出
 					}
 
-				// 分离
-				if (count__status == program.delay__detach_begin)
-					if (command__cannon == CannonCommand.Fire)
+				//分离
+				if (count_status == program.delay__detach_begin)
+					if (command_cannon == CannonCommand.Fire)
 						detach_begin();//开始分离
-				if (count__status == program.delay__detach)
-					if (command__cannon == CannonCommand.Fire)
+				if (count_status == program.delay__detach)
+					if (command_cannon == CannonCommand.Fire)
 						detach();//分离
-				if (count__status == program.delay__detach_end)
-					if (command__cannon == CannonCommand.Fire)
+				if (count_status == program.delay__detach_end)
+					if (command_cannon == CannonCommand.Fire)
 						detach_end();//结束分离
 
-				// 固定式焊接
-				if (flag__fixed_welding)
-				{
-					if (command__cannon == CannonCommand.Fire)
-					{
-						// 射击
-						if (count__status == program.delay__load_shell__attach)
-							load_shell__attach(); // 附着炮弹
-						if (count__status == program.delay__load_shell__dettach)
-							load_shell__dettach(); // 断开供弹元件
-					}
-					else if (command__cannon == CannonCommand.Reload)
-					{
-						// 射击
-						if (count__status == program.delay__load_shell__attach)
-							load_shell__attach(); // 附着炮弹
-						if (count__status == program.delay__load_shell__dettach)
-							load_shell__dettach(); // 断开供弹元件
-					}
-				}
-
 				//激活炮弹
-				if (command__cannon == CannonCommand.Fire && count__status == program.delay__try_activate_shell)
+				if (command_cannon == CannonCommand.Fire && count_status == program.delay__try_activate_shell)
 					try_activate_shell();
 				//伸展
-				if (command__cannon == CannonCommand.Fire && count__status == program.delay__pistons_extend)
+				if (command_cannon == CannonCommand.Fire && count_status == program.delay__pistons_extend)
 					pistons_extend();
 				//附着
-				if (command__cannon == CannonCommand.Fire)
-				{
-					if ((!flag__all_releasers_attached && count__status > program.delay__attach) || count__status == program.delay__attach)
-						attach();
-				}
-				else if(command__cannon == CannonCommand.Reload)
-				{
-					if ((!flag__all_releasers_attached && count__status > delay__attach_on_reload) || count__status == delay__attach_on_reload)
-						attach();
-				}
-				//收缩
-				if (count__status == program.delay__pistons_retract)
-					pistons_retract();
+				if ((!flag__all_releasers_attached && count_status > program.delay__attach) || count_status == program.delay__attach)
+					attach();
 
-				// 定时器接口
+				if (count_status == program.delay__pistons_retract)
+					pistons_retract();//收缩
 				if (flag__auto_trigger_custom_interface_timer_0)
-					if (count__status == program.delay__custom_interface_timer_0)
+					if (count_status == program.delay__custom_interface_timer_0)
 						custom_timer_interface_0();//第一个定时器接口
 				if (flag__auto_trigger_custom_interface_timer_1)
-					if (count__status == program.delay__custom_interface_timer_1)
+					if (count_status == program.delay__custom_interface_timer_1)
 						custom_timer_interface_1();//第二个定时器接口
-				if (flag__auto_trigger_custom_interface_timer_2)
-					if (count__status == program.delay__custom_interface_timer_2)
-						custom_timer_interface_2();//第三个定时器接口
-				if (flag__auto_trigger_custom_interface_timer_3)
-					if (count__status == program.delay__custom_interface_timer_3)
-						custom_timer_interface_3();//第四个定时器接口
-				if (flag__auto_trigger_custom_interface_timer_4)
-					if (count__status == program.delay__custom_interface_timer_4)
-						custom_timer_interface_4();//第五个定时器接口
 
-				// 炮弹主动断连
 				if (flag__enable_shell_disconnection)
 				{
-					if (count__status == program.delay__try_disconnect_shell && command__cannon == CannonCommand.Fire)
+					if (count_status == program.delay__try_disconnect_shell && command_cannon == CannonCommand.Fire)
 						try_disconnect_shell_0();
 					if ((!block__speed_limit_breaker.IsAttached)
-						&& (count__status >= program.delay__try_disconnect_shell + program.time__disconnecting_shell))
+						&& (count_status >= program.delay__try_disconnect_shell + program.time__disconnecting_shell))
 						try_disconnect_shell_1();
 				}
 
-				// 二段式
 				if (flag__enable_two_stage_mode)
 				{
-					if (count__status == program.delay__disable_fixators)
+					if (count_status == program.delay__disable_fixators)
 					{
 						//禁用固定器
 						disable_fixators();
 						//若是重载命令, 则次要活塞伸展延迟到此步骤执行
-						if (command__cannon == CannonCommand.Reload)
+						if (command_cannon == CannonCommand.Reload)
 						{
-							//伸展次要活塞 (一般是非同步的, 那么也就是实际上执行收缩)
+							//伸展次要活塞
 							minor_pistons_extend();
 							// 强制暂停
 							pause_sometime(program.delay__pausing);//强制性暂停时间
-							++this.count__status;
+							++this.count_status;
 							return;//强制退出
 						}
 					}
-					if (command__cannon == CannonCommand.Fire && count__status == program.delay__minor_pistons_extend)
+					if (command_cannon == CannonCommand.Fire && count_status == program.delay__minor_pistons_extend)
 						//伸展次要活塞
 						minor_pistons_extend();
-					if (!flag__all_fixators_enabled && count__status >= program.delay__enable_fixators)
+					if (!flag__all_fixators_enabled && count_status >= program.delay__enable_fixators)
 						//启用固定器
 						enable_fixators();
-					if (count__status == program.delay__minor_pistons_retract)
-                        //收缩次要活塞 (一般是非同步的, 那么也就是实际上执行伸展)
-                        minor_pistons_retract();
+					if (count_status == program.delay__minor_pistons_retract)
+						//收缩次要活塞
+						minor_pistons_retract();
 				}
 
-				// 结束
-				if (count__status == program.delay__done_loading)
+				if (count_status == program.delay__done_loading)
 					done_command();//完成装填
-
-				//状态计数+1
-				++this.count__status;
+								   //状态计数+1
+				++this.count_status;
 			}
 
 			//暂停一段时间
@@ -2285,12 +1984,13 @@ namespace AMCCS_DEV
 			{
 				if (time <= 0)
 					return;
-				times__delay += time; // 累加暂停时长
-				status__cannon = CannonStatus.Pausing;//设置暂停状态
-				flag__paused = true;// 设置是否暂停过的标记
+				times_delay += time;
+				status_cannon = CannonStatus.Pausing;//设置暂停状态
+				flag_paused = true;// 设置是否暂停过的标记
+								   //program.times__before_next_auto_fire += time;
 			}
 
-			//释放
+			//释放 同时会开启锁定垂直关节
 			private void release()
 			{
 				//重新获取弹头
@@ -2298,30 +1998,25 @@ namespace AMCCS_DEV
 				//	update_warheads_list();
 
 				//释放
-				foreach (var item in list__releasers)
+				foreach (var item in list_releasers)
 					if (item.IsAttached)
 						item.Detach();
 
 				//打开焊接器
 				if (flag__auto_toggle_welders_onoff)
 				{
-					foreach (var item in list__welders)
+					foreach (var item in list_welders)
 						item.Enabled = true;
 				}
 
 				//重置标记
 				flag__all_releasers_attached = false;
-
-				// 固定式焊接此刻需要重新打开供弹元件 (合并块)
-				if (flag__fixed_welding && command__cannon == CannonCommand.Fire)
-					foreach (var item in list__shell_loaders)
-						item.Enabled = true;
 			}
 
 			private void detach_begin()
 			{
 				//根据不同的分离模式执行不同操作
-				switch (mode__detach)
+				switch (mode_detach)
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
@@ -2329,39 +2024,32 @@ namespace AMCCS_DEV
 						//打开加特林
 						//或
 						//打开切割机(开始切割)
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							item.Enabled = true;
 						break;
 					}
-					case DetachMode.MergeBlock://常规分离(合并块)
+					case DetachMode.Normal://常规分离(合并块)
 						break;
 				}
 			}
 
-			// 炮弹发射时的分离 (固定式焊接此时打开供弹元件)
 			private void detach()
 			{
 				//根据不同的分离模式执行不同操作
-				switch (mode__detach)
+				switch (mode_detach)
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
 					{
 						//射击一次
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							item.ApplyAction("ShootOnce");
 						break;
 					}
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
-					case DetachMode.SubGrid:
-					{
-						foreach (var item in list__detachers)
-							(item as IMyMechanicalConnectionBlock).Detach();
-						break;
-					}
-					case DetachMode.MergeBlock://常规分离(合并块)
+					case DetachMode.Normal://常规分离(合并块)
 					{
 						//关闭切割机或合并块
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							item.Enabled = false;
 						break;
 					}
@@ -2372,92 +2060,59 @@ namespace AMCCS_DEV
 			private void detach_end()
 			{
 				//根据不同的分离模式执行不同操作
-				switch (mode__detach)
+				switch (mode_detach)
 				{
 					case DetachMode.GatlinDestroy://破坏式分离(加特林)
 					{
 						//关闭加特林
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							item.Enabled = false;
 						break;
 					}
 					case DetachMode.GrinderDestroy://破坏式分离(切割机)
 						break;
-					case DetachMode.MergeBlock://常规分离(合并块)
+					case DetachMode.Normal://常规分离(合并块)
 					{
 						//开启合并块
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							item.Enabled = true;
 						break;
 					}
 				}
-			}
-
-			private void load_shell__attach()
-			{
-				//根据不同的分离模式执行不同操作
-				switch (mode__detach)
-				{
-					case DetachMode.GatlinDestroy://破坏式分离(加特林)
-					case DetachMode.GrinderDestroy://破坏式分离(切割机)
-						break;
-					case DetachMode.SubGrid:
-					{
-						foreach (var item in list__detachers)
-						{
-							(item as IMyMechanicalConnectionBlock).Detach();
-							(item as IMyMechanicalConnectionBlock).Attach();
-						}
-						break;
-					}
-					case DetachMode.MergeBlock://常规分离(合并块)
-					{
-						//开启合并块
-						foreach (var item in list__detachers)
-							item.Enabled = true;
-						break;
-					}
-				}
-			}
-
-			private void load_shell__dettach()
-			{
-				foreach (var item in list__shell_loaders)
-					item.Enabled = false;
 			}
 
 			//尝试激活炮弹
 			private void try_activate_shell()
 			{
+				// 激活炮弹前获取弹头
+				if (program.flag__auto_activate_shell)
+					update_warheads_list();
 				//激活弹头
 				if (flag__auto_activate_shell)
 				{
-					// 激活炮弹前获取弹头
-					if (program.flag__auto_activate_shell)
-						update_warheads_list();
 					if (flag__check_shell_detach_status)
 					{
 						//获取网格
 						IMyCubeGrid grid_locator = locator__cannon_detach_part_grid.CubeGrid;
 						//炮弹所在网格
 						IMyCubeGrid grid_shell;
-						if (list__warheads.Count > 0)
-							grid_shell = list__warheads[0].CubeGrid;
+						if (list_warheads.Count > 0)
+							grid_shell = list_warheads[0].CubeGrid;
 						else
 							return;
 						//直线
-						LineD line = new LineD(locator__cannon_detach_part_grid.GetPosition(), list__warheads[0].GetPosition());
+						LineD line = new LineD(locator__cannon_detach_part_grid.GetPosition(), list_warheads[0].GetPosition());
 						//检查
 						if (grid_locator != grid_shell && line.Length > program.distance__warhead_savety_lock)
 						{
 							if (program.flag__auto_start_warhead_countdown)
-								foreach (var item in list__warheads)
+								foreach (var item in list_warheads)
 								{
 									item.DetonationTime = (float)program.number__warhead_countdown_seconds;
 									item.StartCountdown(); item.IsArmed = true;
 								}
 							else
-								foreach (var item in list__warheads)
+								foreach (var item in list_warheads)
 									item.IsArmed = true;
 						}
 					}
@@ -2465,15 +2120,16 @@ namespace AMCCS_DEV
 					{
 						//直接激活
 						if (program.flag__auto_start_warhead_countdown)
-							foreach (var item in list__warheads)
+							foreach (var item in list_warheads)
 							{
 								item.DetonationTime = (float)program.number__warhead_countdown_seconds;
 								item.StartCountdown(); item.IsArmed = true;
 							}
 						else
-							foreach (var item in list__warheads)
+							foreach (var item in list_warheads)
 								item.IsArmed = true;
 					}
+
 				}
 			}
 
@@ -2482,15 +2138,22 @@ namespace AMCCS_DEV
 			{
 				//检查状态 活塞不处于已伸展也未正在伸展
 				if (piston__status_indicator.Status != PistonStatus.Extended && piston__status_indicator.Status != PistonStatus.Extending)
-					foreach (var item in list__pistons)
+					foreach (var item in list_pistons)
 						item.Extend();
 			}
 
-			//附着
+			//释放器预分离
+			private void releasers_detach()
+			{
+				foreach (var item in list_releasers)
+					item.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
+			}
+
+			//附着 同时会解锁垂直关节
 			private void attach()
 			{
 				//附着
-				foreach (var item in list__releasers)
+				foreach (var item in list_releasers)
 					if (!item.IsAttached)//检查是否已经附着
 					{
 						item.Detach();//由于傻逼K社的智障BUG, 必须加上这一行
@@ -2506,7 +2169,7 @@ namespace AMCCS_DEV
 				if (piston__status_indicator.Status != PistonStatus.Retracted
 					&& piston__status_indicator.Status != PistonStatus.Retracting)
 				{
-					foreach (var item in list__pistons)
+					foreach (var item in list_pistons)
 						item.Retract();
 				}
 			}
@@ -2514,39 +2177,22 @@ namespace AMCCS_DEV
 			private void custom_timer_interface_0()
 			{
 				//触发用户定时器0
-				if (timer__custom_interface_0 != null)
-					timer__custom_interface_0.Trigger();
+				timer__custom_interface_0.Trigger();
 			}
 
 			private void custom_timer_interface_1()
 			{
 				//触发用户定时器1
-				if (timer__custom_interface_1 != null)
-					timer__custom_interface_1.Trigger();
-			}
-
-			private void custom_timer_interface_2()
-			{
-				//触发用户定时器1
-				if (timer__custom_interface_2 != null)
-					timer__custom_interface_2.Trigger();
-			}
-
-			private void custom_timer_interface_3()
-			{
-				//触发用户定时器1
-				if (timer__custom_interface_3 != null)
-					timer__custom_interface_3.Trigger();
-			}
-
-			private void custom_timer_interface_4()
-			{
-				//触发用户定时器1
-				if (timer__custom_interface_4 != null)
-					timer__custom_interface_4.Trigger();
+				timer__custom_interface_1.Trigger();
 			}
 
 			private void try_disconnect_shell_0() => block__speed_limit_breaker.Detach();
+
+			//破速限元件预分离
+			private void speed_limit_breakers_detach()
+			{
+				block__speed_limit_breaker.Detach();
+			}
 
 			private void try_disconnect_shell_1()
 			{
@@ -2557,7 +2203,7 @@ namespace AMCCS_DEV
 			//禁用固定器
 			private void disable_fixators()
 			{
-				switch (mode__fix)
+				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
 					{
@@ -2592,10 +2238,18 @@ namespace AMCCS_DEV
 				}
 			}
 
+			//固定器预分离
+			private void fixators_detach()
+			{
+				if (mode_fix == FixMode.MechanicalConnectionBlock)
+					foreach (var item in list_fixators)
+						(item as IMyMechanicalConnectionBlock).Detach();
+			}
+
 			//启用固定器
 			private void enable_fixators()
 			{
-				switch (mode__fix)
+				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
 					{
@@ -2636,18 +2290,18 @@ namespace AMCCS_DEV
 			//结束命令 同时会关闭焊接器
 			private void done_command()
 			{
-				// 关闭焊接器
+				//关闭焊接器
 				if (flag__auto_toggle_welders_onoff)
-					foreach (var item in list__welders)
+					foreach (var item in list_welders)
 						item.Enabled = false;
-				// 重置为就绪态
-				status__cannon = CannonStatus.Ready;
-				// 重置命令
-				command__cannon = CannonCommand.None;
-				// 重置暂停标记
-				flag__paused = false;
-				// 重置状态计数器(之后会自动+1)
-				count__status = 0;
+				//重置为就绪态
+				status_cannon = CannonStatus.Ready;
+				//重置命令
+				command_cannon = CannonCommand.None;
+				// 标记为未暂停过
+				flag_paused = false;
+				//重置状态计数器(之后会自动+1)
+				count_status = 0;
 			}
 
 			//更新弹头列表, 弹头在焊接之后需要重新获取
@@ -2656,32 +2310,32 @@ namespace AMCCS_DEV
 				//拼接字符串, 得到编组名称
 				string name_group = this.program.tag__cannon_shell_warheads_group + this.index_cannon;
 				//清空旧列表
-				list__warheads.Clear();
+				list_warheads.Clear();
 				//获取弹头元件编组
 				group_warheads = program.GridTerminalSystem.GetBlockGroupWithName(name_group);
 				//检查
 				if (group_warheads != null)
 					//添加到列表 (如果不开启主动断开炮弹连接的功能, 这一步可能引入旧的弹头对象)
-					group_warheads.GetBlocksOfType<IMyWarhead>(list__warheads);
+					group_warheads.GetBlocksOfType<IMyWarhead>(list_warheads);
 
 				//将上一发炮弹的弹头从列表中剔除
-				for (var i = 0; i < list__warheads.Count; ++i)
-					if (list__warheads[i].CubeGrid == grid__previous_shell)
-						list__warheads.RemoveAt(i--);
+				for (var i = 0; i < list_warheads.Count; ++i)
+					if (list_warheads[i].CubeGrid == grid__previous_shell)
+						list_warheads.RemoveAt(i--);
 				//更新网格记录
-				if (list__warheads.Count > 0)
-					grid__previous_shell = list__warheads[0].CubeGrid;
+				if (list_warheads.Count > 0)
+					grid__previous_shell = list_warheads[0].CubeGrid;
 				else
 					grid__previous_shell = null;
 				// 记录上一次(本次)射击时获取的弹头数
-				count__warheads_on_last_fire = list__warheads.Count;
-				this.flag__auto_activate_shell = (group_warheads != null) && (list__warheads.Count != 0);
+				count__warheads_on_last_fire = list_warheads.Count;
+				this.flag__auto_activate_shell = (group_warheads != null) && (list_warheads.Count != 0);
 			}
 
 			//检查释放器状态
 			private bool check_releasers_status()
 			{
-				foreach (var item in list__releasers)
+				foreach (var item in list_releasers)
 					if (!item.IsAttached)//发现没有成功附着的则返回false
 						return false;
 				return true;//全部附着返回true
@@ -2690,7 +2344,7 @@ namespace AMCCS_DEV
 			//检查固定器状态
 			private bool check_fixators_status()
 			{
-				switch (mode__fix)
+				switch (mode_fix)
 				{
 					case FixMode.MergeBlock:
 					{
@@ -2721,41 +2375,34 @@ namespace AMCCS_DEV
 			// 检查分离器状态
 			private bool check_detachers_status()
 			{
-				flag__shell_detachers_all_connected = true;
-				flag__shell_detachers_connected = false;
-
-				switch (mode__detach)
+				switch (mode_detach)
 				{
-					// 加特林无需检查
+					//加特林无需检查
 					case DetachMode.GatlinDestroy:
 						return true;
-					// 所有切割机需要保证处于关闭状态
+					//切割机需要保证处于关闭状态
 					case DetachMode.GrinderDestroy:
-						foreach (var item in list__detachers)
+						foreach (var item in list_detachers)
 							if (item.Enabled)
+							{
+								item.Enabled = false;
 								return false;
+							}
 						break;
-					// 所有合并块需要保证处于连接状态
-					case DetachMode.MergeBlock:
-						foreach (var item in list__detachers)
-							if ((item as IMyShipMergeBlock).IsConnected)
-								flag__shell_detachers_connected = true;
-							else
-								flag__shell_detachers_all_connected = false;
-						return flag__shell_detachers_all_connected;
-					// 所有机械连接部件需要保证处于附着状态
-					case DetachMode.SubGrid:
-						foreach (var item in list__detachers)
-							if ((item as IMyMechanicalConnectionBlock).IsAttached)
-								flag__shell_detachers_connected = true;
-							else
-								flag__shell_detachers_all_connected = false;
-						return flag__shell_detachers_all_connected;
+					//合并块需要保证处于连接状态
+					case DetachMode.Normal:
+						foreach (var item in list_detachers)
+							if (!(item as IMyShipMergeBlock).IsConnected)
+							{
+								item.Enabled = true;
+								return false;
+							}
+						break;
 				}
 				return true;
 			}
 
-			// 检查投影仪状态 (是否焊接完成) (延迟过高不使用)
+			// 检查投影仪状态 (是否焊接完成)
 			private bool check_projector_status()
 			{
 				//检查投影仪投影的蓝图是否焊接完成
@@ -2768,45 +2415,17 @@ namespace AMCCS_DEV
 				return false;
 			}
 
-			// 检查分离网格状态 (检查炮弹状态, 内部会更新相关标记, 这个函数不会被自检调用)
-			// 检查网格上的方块数量是否合法
-			// 传入的参数决定了目标数
-			private bool check_detach_grid_status(int _target)
+			// 检查分离网格状态
+			private bool check_detach_grid_status()
 			{
-				// 目标网格
-				IMyCubeGrid grid = null;
-
-				if (flag__fixed_welding)
-				{
-					// 固定式焊接, 则只能通过分离元件获取
-					if (mode__detach == DetachMode.MergeBlock)
-						// 合并块直接获取
-						grid = list__detachers.First().CubeGrid;
-					else if (mode__detach == DetachMode.SubGrid)
-						// 机械连接部件使用TOP网格
-						grid = (list__detachers.First() as IMyMechanicalConnectionBlock).TopGrid;
-				}
-				else
-				{
-					// 不是固定式焊接, 可以从破限元件或定位器获取, 若分离方式是合并块, 也可以通过分离元件获取
-					if (block__speed_limit_breaker != null)
-						// 获取顶部网格
-						grid = block__speed_limit_breaker.TopGrid;
-
-					if (grid == null && locator__cannon_detach_part_grid != null)
-						// 获取定位器所在的网格
-						grid = locator__cannon_detach_part_grid.CubeGrid;
-
-					if (grid == null)
-						if (mode__detach == DetachMode.MergeBlock)
-							grid = list__detachers.First().CubeGrid;
-				}
-
-				// 上述操作都失败则结束, 不能检查弹头组, 弹头是发射前重新获取的
-
+				if (block__speed_limit_breaker == null)
+					// 用户没有注册对象, 无法检查
+					return true;
+				// 获取顶部网格
+				IMyCubeGrid grid = block__speed_limit_breaker.TopGrid;
 				if (grid == null)
 					// 没有顶部网格, 不存在头元件, 返回错误
-					return flag__detach_grid_complete = false;
+					return false;
 
 				// 当前索引
 				Vector3I index = grid.Min;
@@ -2818,19 +2437,11 @@ namespace AMCCS_DEV
 						for (index.Z = grid.Min.Z; index.Z <= grid.Max.Z; ++index.Z)
 							if (grid.CubeExists(index))
 								++count;
-
-				if (flag__fixed_welding)
-				{
-					// 固定式焊接, 需要获取一些额外的信息 (不获取是否合法, 只用来更新标记)
-					check_shell_loaders_status();
-					check_detachers_status();
-				}
-
-				// 检查数量是否和程序设定一致
-				return flag__detach_grid_complete = (count == _target);
+				// 检查
+				return count == program.count__total_blocks_in_detach_grid;
 			}
 
-			// 检查破限元件状态
+			//检查破限元件状态
 			private bool check_speed_limit_breakers_status()
 			{
 				foreach (var item in list__speed_limmit_beakers)
@@ -2839,20 +2450,7 @@ namespace AMCCS_DEV
 				return true;
 			}
 
-			// 检查供弹元件状态
-			private bool check_shell_loaders_status()
-			{
-				flag__shell_loaders_all_connected = true;
-				flag__shell_loaders_connected = false;
-				foreach (var item in list__shell_loaders)
-					if (item.IsConnected)
-						flag__shell_loaders_connected = true;
-					else
-						flag__shell_loaders_all_connected = false;
-				return flag__load_shell_detach_before_release == flag__shell_loaders_all_connected;
-			}
-
-			// 检查火炮在在物理上的状态 (仅被自检函数调用, 该函数不会在 Running 状态被调用, 这个函数不会检查分离网格
+			//检查火炮在在物理上的状态
 			private bool check_cannon_status()
 			{
 				//检查活塞状态指示器
@@ -2867,11 +2465,8 @@ namespace AMCCS_DEV
 				//检查破速限元件状态
 				else if (flag__enable_shell_disconnection && !check_speed_limit_breakers_status())
 					return false;
-				//检查分离元件状态
+				//检查分离器状态
 				else if (!check_detachers_status())
-					return false;
-				// 检查供弹元件的状态
-				else if (flag__fixed_welding && !check_shell_loaders_status())
 					return false;
 				return true;
 			}
@@ -2882,10 +2477,8 @@ namespace AMCCS_DEV
 				//结果
 				bool flag_res = true;
 
-				// TODO: 下面要改下检查方块是否存在的实现方式
-
 				//检查活塞元件完整性
-				foreach (var item in list__pistons)
+				foreach (var item in list_pistons)
 					if (!item.IsWorking || item.GetPosition().IsZero())
 					{
 						flag_res = false;
@@ -2893,31 +2486,20 @@ namespace AMCCS_DEV
 					}
 
 				//检查释放元件完整性
-				foreach (var item in list__releasers)
+				foreach (var item in list_releasers)
 					if (!item.IsFunctional || item.GetPosition().IsZero())
 					{
 						flag_res = false;
 						break;
 					}
 
-				//检查分离元件完整性
-				foreach (var item in list__detachers)
+				//检查分离器完整性
+				foreach (var item in list_detachers)
 					if (!item.IsFunctional || item.GetPosition().IsZero())
 					{
 						flag_res = false;
 						break;
 					}
-
-				if (flag__fixed_welding)
-				{
-					//检查供弹元件完整性
-					foreach (var item in list__shell_loaders)
-						if (!item.IsFunctional || item.GetPosition().IsZero())
-						{
-							flag_res = false;
-							break;
-						}
-				}
 
 				return flag_res;
 			}
@@ -2926,44 +2508,38 @@ namespace AMCCS_DEV
 			public string get_cannon_info()
 			{
 				return "<cannon> ------------------------------ No." + this.index_cannon
-					+ "\n<status> " + status__cannon.ToString()
-					+ $"\n<count_status> {this.count__status}/{program.delay__done_loading} {get_string_progress_bar()}"
-					+ "\n<command> " + command__cannon.ToString()
-					+ "\n<mode_detach> " + this.mode__detach
+					+ "\n<status> " + status_cannon.ToString()
+					+ $"\n<count_status> {this.count_status}/{program.delay__done_loading} {get_string_progress_bar()}"
+					+ "\n<command> " + command_cannon.ToString()
+					+ "\n<mode_detach> " + this.mode_detach
 					+ "\n<flag__rotor_attached> " + this.check_releasers_status()
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
-					+ "\n<count_pistons> " + this.list__pistons.Count
-					+ "\n<delay__release_on_reload> " + this.delay__release_on_reload
+					+ "\n<count_pistons> " + this.list_pistons.Count
 					+ "\n<count__warheads_on_last_fire> " + this.count__warheads_on_last_fire
+					+ "\n<delay_ROR> " + this.delay__release_on_reload
 					+ "\n<progress_PJT> " + (projector__cannon_shell == null ? "null" :
 					(projector__cannon_shell.TotalBlocks - projector__cannon_shell.RemainingBlocks + "/" + projector__cannon_shell.TotalBlocks))
-					+ "\n<flags> ----------\n"
-					+ "\n<auto_activate_shell> \n" + this.flag__auto_activate_shell
-					+ "\n\n<check_shell_detach_status> \n" + this.flag__check_shell_detach_status
-					+ "\n\n<auto_toggle_welders_onoff> \n" + this.flag__auto_toggle_welders_onoff
+					+ "\n<flag_AAS> " + this.flag__auto_activate_shell
+					+ "\n<flag_CSDS> " + this.flag__check_shell_detach_status
+					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
 					+ "\n<flag_ATCIT0> " + this.flag__auto_trigger_custom_interface_timer_0
 					+ "\n<flag_ATCIT1> " + this.flag__auto_trigger_custom_interface_timer_1
-					+ "\n<flag_ATCIT2> " + this.flag__auto_trigger_custom_interface_timer_2
-					+ "\n<flag_ATCIT3> " + this.flag__auto_trigger_custom_interface_timer_3
-					+ "\n<flag_ATCIT4> " + this.flag__auto_trigger_custom_interface_timer_4
-					+ "\n\n<enable_shell_disconnection> \n" + this.flag__enable_shell_disconnection
-					+ "\n\n<enable_shell_integrity_check> \n" + this.flag__enable_shell_integrity_check
-					+ "\n\n<enable_two_stage_mode> \n" + this.flag__enable_two_stage_mode
-					+ "\n\n<fixed_welding> \n" + this.flag__fixed_welding
-					+ "\n\n<init_info> \n" + string_builder__init_info.ToString();
+					+ "\n<flag_ETSM> " + this.flag__enable_two_stage_mode
+					+ "\n<flag_ESD> " + this.flag__enable_shell_disconnection
+					+ "\n<flag_ESIC> " + this.flag__enable_shell_integrity_check
+					+ "\n\n <init_info> \n" + string_builder__init_info.ToString();
 			}
 
 			//获取火炮LCD显示信息
 			public string get_cannon_displayer_info()
 			{
 				return "<cannon> ------------------------------ No." + this.index_cannon
-					+ "\n<status> " + status__cannon.ToString()
-					+ $"\n<count_status> {this.count__status}/{program.delay__done_loading} {get_string_progress_bar()}"
-					+ "\n<command> " + command__cannon.ToString()
+					+ "\n<status> " + status_cannon.ToString()
+					+ $"\n<count_status> {this.count_status}/{program.delay__done_loading} {get_string_progress_bar()}"
+					+ "\n<command> " + command_cannon.ToString()
 					+ "\n<rotor_attached> " + this.check_releasers_status()
 					+ "\n<status_pistons> " + this.get_piston_indicator_status()
-					+ "\n<count_pistons> " + this.list__pistons.Count
-					+ "\n<delay__release_on_reload> " + this.delay__release_on_reload
+					+ "\n<count_pistons> " + this.list_pistons.Count
 					+ "\n<flag_AAS> " + this.flag__auto_activate_shell
 					+ "\n<flag_CSDS> " + this.flag__check_shell_detach_status
 					+ "\n<flag_ATWOO> " + this.flag__auto_toggle_welders_onoff
@@ -2979,15 +2555,15 @@ namespace AMCCS_DEV
 			{
 				return
 					"<cannon> No." + this.index_cannon
-					+ " " + this.status__cannon.ToString()
-					+ " " + this.command__cannon.ToString()
+					+ " " + this.status_cannon.ToString()
+					+ " " + this.command_cannon.ToString()
 					+ " " + get_string_progress_bar();
 			}
 
 			//获取字符串进度条
 			private StringBuilder get_string_progress_bar()
 			{
-				int count = (int)(((count__status + program.delay__done_loading - 2) % program.delay__done_loading) / (double)program.delay__done_loading * 11);
+				int count = (int)(((count_status + program.delay__done_loading - 2) % program.delay__done_loading) / (double)program.delay__done_loading * 11);
 				StringBuilder builder_str = new StringBuilder("          ");
 				for (int i = 0; i < count; ++i)
 					builder_str[i] = '#';
@@ -3004,8 +2580,8 @@ namespace AMCCS_DEV
 			//编组 射击指示器
 			IMyBlockGroup group__fire_indicators;
 
-			//列表 火炮 (编组所管理的)
-			List<PistonCannon> list__cannons = new List<PistonCannon>();
+			//列表 火炮
+			List<PistonCannon> list_cannons = new List<PistonCannon>();
 
 			//列表 射击指示器元件
 			List<IMyUserControllableGun> list__fire_indicators = new List<IMyUserControllableGun>();
@@ -3015,22 +2591,19 @@ namespace AMCCS_DEV
 
 			int index_group = -1;
 
-			//索引 上一次射击 (的火炮) (本编组的 List 容器中的索引) (注, 是本地容器的索引)
+			//索引 上一次射击(的火炮)(List容器中的索引)
 			int index__cannon_last_fire = -1;
-			//索引 火炮起始 (本编组管理的火炮的起始编号, 含) (注, 是火炮的全局编号)
+			//索引 火炮起始(本编组管理的火炮起始编号, 含)
 			int index__cannon_begin = -1;
-			//索引 火炮末尾 (本编组管理的火炮的末尾编号, 含)
+			//索引 火炮末尾(本编组管理的火炮末尾编号, 含)
 			int index__cannon_end = -1;
-			//索引 火炮起始 (脚本字段中的火炮 List 容器中的索引, 含) (注, 是全局容器的索引)
+			//索引 火炮起始(List容器中的索引, 含)
 			int index_begin = -1;
-			//索引 火炮末尾 (脚本字段中的火炮 List 容器中的索引, 含)
+			//索引 火炮末尾(List容器中的索引, 含)
 			int index_end = -1;
 
 			//标记 是否 射击指示器处于激活状态
 			bool flag__fire_indicators_activated = false;
-
-			// 是否启用 (默认为真)
-			public bool flag__enabled { get; private set; } = true;
 
 			//编程块的this指针
 			Program program;
@@ -3079,16 +2652,16 @@ namespace AMCCS_DEV
 			public void add_cannon(PistonCannon cannon)
 			{
 				//设置起始索引
-				if (list__cannons.Count == 0)
+				if (list_cannons.Count == 0)
 				{
 					index__cannon_begin = cannon.index_cannon;
 					index_begin = index__cannon_begin - program.index__cannon_begin;
 				}
 				//添加到列表
-				list__cannons.Add(cannon);
-				index__cannon_last_fire = list__cannons.Count - 1;
+				list_cannons.Add(cannon);
+				index__cannon_last_fire = list_cannons.Count - 1;
 				//更新末尾索引
-				index__cannon_end = list__cannons[list__cannons.Count - 1].index_cannon;
+				index__cannon_end = list_cannons[list_cannons.Count - 1].index_cannon;
 				index_end = index__cannon_end - program.index__cannon_begin;
 			}
 
@@ -3110,14 +2683,6 @@ namespace AMCCS_DEV
 			public int get__index_end()
 			{
 				return index_end;
-			}
-
-			// 设置相位 (上一次射击的火炮)
-			// [in] 上一次射击的火炮的局部偏移量 (注, 可以传入-1, 与传入编组管理的火炮数-1 效果相同)
-			public void set_phase(int _phase)
-			{
-				if (_phase >= -1 && _phase < list__cannons.Count)
-					this.index__cannon_last_fire = _phase;
 			}
 
 			//编组射击
@@ -3150,11 +2715,11 @@ namespace AMCCS_DEV
 			{
 				int count = 0;
 
-				// 逐个遍历寻找所有处于 Ready 状态的火炮
-				foreach (var item in list__cannons)
+				//逐个遍历寻找所有处于 Ready 状态的火炮
+				foreach (var item in list_cannons)
 				{
 					//检查状态
-					if (item.status__cannon == PistonCannon.CannonStatus.Ready)
+					if (item.status_cannon == PistonCannon.CannonStatus.Ready)
 					{
 						//设置射击命令
 						item.set_command(PistonCannon.CannonCommand.Fire);
@@ -3173,48 +2738,33 @@ namespace AMCCS_DEV
 				//从上一次开炮的位置往后查找到末尾
 				int index__last_next = index__cannon_last_fire + 1;
 
-				for (i = index__last_next; i < list__cannons.Count; ++i)
+				for (i = index__last_next; i < list_cannons.Count; ++i)
 				{
 					//检查状态
-					if (list__cannons[i].status__cannon == PistonCannon.CannonStatus.Ready)
+					if (list_cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
 					{
 						//设置射击命令
-						list__cannons[i].set_command(PistonCannon.CannonCommand.Fire);
+						list_cannons[i].set_command(PistonCannon.CannonCommand.Fire);
 						return 1;
 					}
 				}
 
 				//仍然没有找到
-				if (i == list__cannons.Count)
+				if (i == list_cannons.Count)
 				{
 					//从开头重新查找到上次开炮的位置
 					for (i = 0; i < index__last_next; ++i)
 					{
 						//检查状态
-						if (list__cannons[i].status__cannon == PistonCannon.CannonStatus.Ready)
+						if (list_cannons[i].status_cannon == PistonCannon.CannonStatus.Ready)
 						{
 							//设置射击命令
-							list__cannons[i].set_command(PistonCannon.CannonCommand.Fire);
+							list_cannons[i].set_command(PistonCannon.CannonCommand.Fire);
 							return 1;
 						}
 					}
 				}
 				return 0;
-			}
-
-			public void enable_all_cannons_in_group()
-			{
-				flag__enabled = true;
-				foreach (var cannon in list__cannons)
-					cannon.set_enabled(true);
-			}
-
-			// 禁用编组内的所有火炮
-			public void disable_all_cannons_in_group()
-			{
-				flag__enabled = false;
-				foreach (var cannon in list__cannons)
-					cannon.set_enabled(false);
 			}
 
 			//检车并更新武器同步状态
@@ -3231,19 +2781,17 @@ namespace AMCCS_DEV
 			}
 
 			//更新上一次射击火炮索引
-			// [in] index 上一次射击的火炮的全局编号
-			public void update_last_fire_index(int _index)
+			public void update_last_fire_index(int index)
 			{
-				if (_index >= index__cannon_begin && _index <= index__cannon_end)
-					this.index__cannon_last_fire = _index - index__cannon_begin;
+				this.index__cannon_last_fire = index - index__cannon_begin;
 			}
 
 			//返回就绪的火炮数量
 			private int count_ready_cannon()
 			{
 				int count = 0;
-				foreach (var item in list__cannons)
-					if (item.status__cannon == PistonCannon.CannonStatus.Ready)
+				foreach (var item in list_cannons)
+					if (item.status_cannon == PistonCannon.CannonStatus.Ready)
 						++count;
 				return count;
 			}
@@ -3254,10 +2802,9 @@ namespace AMCCS_DEV
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
 					"\n<group> ------------------------------ No." + this.index_group
-					+ $"\n<group> No.{this.index_group} {flag__enabled}"
 					+ "\n<mode_fire> " + this.mode_fire
-					+ "\n<cannons> --------------------\n");
-				foreach (var item in list__cannons)
+					+ "\n\n");
+				foreach (var item in list_cannons)
 					sb.Append(item.get_cannon_info() + "\n");
 				sb.Append(string_builder__init_info);
 				return sb.ToString();
@@ -3268,10 +2815,10 @@ namespace AMCCS_DEV
 				StringBuilder sb = new StringBuilder();
 				sb.Append(
 					"<group> ------------------------------ No." + this.index_group
-					+ $"\n<group> No.{this.index_group} {flag__enabled}"
+					+ "\n<group> No." + this.index_group
 					+ "\n<mode_fire> " + this.mode_fire
 					+ "\n<cannons> --------------------\n");
-				foreach (var item in list__cannons)
+				foreach (var item in list_cannons)
 					sb.Append(item.get_cannon_simplified_info() + "\n");
 				return sb.ToString();
 			}
